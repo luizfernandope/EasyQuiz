@@ -9,7 +9,6 @@ type Props = {
   enunciado: string;
   tipo: 'Multipla Escolha' | 'Dissertativa' | 'Verdadeiro/Falso';
   dificuldade: 'Fácil' | 'Médio' | 'Difícil';
-  isPublica: boolean;
   disciplina: string;
   //opcoes de resposta com a resposta (4 para multipla escolha, 2 para VF, vazio para dissertativa)
   opcoes?: string[]; // ? indica que é opcional
@@ -21,7 +20,6 @@ export default function QuestionListItem({
   enunciado, 
   tipo, 
   dificuldade, 
-  isPublica,
   disciplina,
   opcoes,
   resposta
@@ -118,6 +116,7 @@ export default function QuestionListItem({
       {/*display flex vertical centralizado*/}
       <div className=" flex flex-col items-center space-y-2">
         <Link 
+
           href={`/dashboard/questions/edit/${id}`}
           className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100"
           title="Editar"

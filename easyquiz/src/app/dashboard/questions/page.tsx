@@ -67,7 +67,6 @@ export default function MyQuestionsPage() {
             enunciado={questao.enunciado}
             tipo={questao.tipo}
             dificuldade={questao.dificuldade}
-            isPublica={questao.isPublica}
             disciplina={questao.disciplina}
             opcoes={questao.opcoes}
             resposta={questao.resposta}
