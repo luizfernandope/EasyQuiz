@@ -8,7 +8,8 @@ export default function Sidebar() {
     { name: 'Criar Questão', href: '/dashboard/questions/new' },
     { name: 'Perfil', href: '/dashboard/profile' },
     { name: 'Disciplinas', href: '/dashboard/disciplinas' },
-    { name: 'Cadastrar Novo Usuário', href: '/dashboard/users/new' }
+    { name: 'Cadastrar Novo Usuário', href: '/dashboard/users/new' },
+    { name: 'Registros', href: '/dashboard/logs' }
   ];
 
   return (

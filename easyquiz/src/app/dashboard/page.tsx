@@ -1,6 +1,6 @@
 import Link from 'next/link';
 // Vamos usar ícones para os atalhos e estatísticas
-import { Plus, FileText, CheckSquare, BarChart2, User, BookOpen, UserRoundPlus } from 'lucide-react';
+import { Plus, FileText, CheckSquare, BarChart2, User, BookOpen, UserRoundPlus, History } from 'lucide-react';
 
 // Dados Falsos (Mock Data) para as estatísticas
 const stats = [
@@ -58,6 +58,12 @@ const atalhos = [
     href: '/dashboard/users/new',
     icone: <UserRoundPlus size={20} className="mr-2" />,
     descricao: 'Cadastrar um novo usuário no sistema.',
+  },
+  {
+    nome: 'Ver Registros',
+    href: '/dashboard/logs',
+    icone: <History size={20} className="mr-2" />,
+    descricao: 'Visualizar logs e registros do sistema.',
   }
 ];
 
