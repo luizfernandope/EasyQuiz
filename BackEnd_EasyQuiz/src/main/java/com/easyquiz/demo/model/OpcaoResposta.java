@@ -1,8 +1,10 @@
 package com.easyquiz.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.ToString;
 import jakarta.persistence.*;
 
 @Data
@@ -16,12 +18,16 @@ public class OpcaoResposta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "questao_id", nullable = false)
-    private Integer questaoId;
-
     @Column(name = "texto_resposta", nullable = false)
     private String textoResposta;
 
     @Column(name = "correta")
     private Boolean correta;
+
+    // Relacionamento reverso
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "questao_id", nullable = false)
+    @JsonIgnore // Evita loop infinito no JSON padrão
+    @ToString.Exclude
+    private Questao questao;
 }

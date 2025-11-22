@@ -5,16 +5,15 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({"hibernateLazyInitializer","handler"})
 @Entity
 @Table(name = "questao")
 public class Questao {
@@ -27,13 +26,11 @@ public class Questao {
     private String titulo;
 
     @Column(name = "descricao", nullable = false, columnDefinition = "TEXT")
-    private String descricao;
+    private String descricao; // Isso atua como o "Enunciado"
 
-    // ENUM virou String
     @Column(name = "dificuldade", nullable = false)
     private String dificuldade;
 
-    // ENUM virou String
     @Column(name = "tipo", nullable = false)
     private String tipo;
 
@@ -43,11 +40,17 @@ public class Questao {
     @Column(name = "data_ultima_modificacao")
     private LocalDateTime dataUltimaModificacao;
 
-    @Column(name = "disciplina_id")
-    private Integer disciplinaId;
+    // Relacionamento ManyToOne com Disciplina
+    @ManyToOne
+    @JoinColumn(name = "disciplina_id")
+    private Disciplina disciplina;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "criado_por", referencedColumnName = "id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Usuario criadoPor;
+
+    // Lista de opções vinculada à questão
+    @OneToMany(mappedBy = "questao", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OpcaoResposta> opcoes = new ArrayList<>();
 }
