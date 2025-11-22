@@ -1,8 +1,25 @@
-import Link from 'next/link';
-import { CheckCircle } from 'lucide-react'; // Ícone (opcional, mas legal)
-// Para instalar ícones: npm install lucide-react
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { CheckCircle } from 'lucide-react';
+import { getLoggedUser } from '@/services/api'; // Importe a função auxiliar
 
 export default function HomePage() {
+  const router = useRouter();
+
+  // Função para controlar a navegação baseada no login
+  const handleNavigation = (path: string) => {
+    const user = getLoggedUser();
+    
+    if (user) {
+      // Se estiver logado, vai para a página solicitada
+      router.push(path);
+    } else {
+      // Se não, força o login
+      router.push('/auth/sign-in');
+    }
+  };
+
   return (
     <>
       {/* 1. Hero Section */}
@@ -16,18 +33,21 @@ export default function HomePage() {
             Crie, compartilhe e gere provas personalizadas com facilidade.
           </p>
           <div className="flex justify-center gap-4">
-            <Link 
-              href="/dashboard/generator" 
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors"
+            {/* Botão 1: Gerar Prova */}
+            <button 
+              onClick={() => handleNavigation('/dashboard/generator')}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors cursor-pointer"
             >
               Gerar Prova Rápida
-            </Link>
-            <Link 
-              href="/browse" 
-              className="bg-gray-100 text-gray-800 px-6 py-3 rounded-lg font-semibold text-lg hover:bg-gray-200 transition-colors"
+            </button>
+
+            {/* Botão 2: Explorar Questões */}
+            <button 
+              onClick={() => handleNavigation('/browse')}
+              className="bg-gray-100 text-gray-800 px-6 py-3 rounded-lg font-semibold text-lg hover:bg-gray-200 transition-colors cursor-pointer"
             >
               Explorar Questões
-            </Link>
+            </button>
           </div>
         </div>
       </section>

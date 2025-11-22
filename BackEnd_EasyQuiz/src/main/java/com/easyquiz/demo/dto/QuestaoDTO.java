@@ -1,5 +1,4 @@
 package com.easyquiz.demo.dto;
-
 import lombok.Data;
 import java.util.List;
 
@@ -15,5 +14,5 @@ public class QuestaoDTO {
     private String nomeCriador;
     private Integer criadorId;
     private List<OpcaoDTO> opcoes;
-    private String respostaCorreta; 
+    private String respostaCorreta;
 }

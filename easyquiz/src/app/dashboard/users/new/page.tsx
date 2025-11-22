@@ -2,38 +2,65 @@
 
 import { useState } from 'react';
 import { User, Mail, Shield } from 'lucide-react';
+import { API_URL, getLoggedUser } from '@/services/api';
 
 type UserType = 'Professor' | 'Admin';
 
 export default function NewUserPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [userType, setUserType] = useState<UserType>('Professor');
+  // No backend o ENUM está como String uppercase: "PROFESSOR", "ADMIN"
+  const [userType, setUserType] = useState<UserType>('Professor'); 
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+    setLoading(true);
 
-    if (!name.trim() || !email.trim()) {
-      setMessage({ text: 'Nome e email são obrigatórios.', type: 'error' });
-      return;
+    const currentUser = getLoggedUser();
+    if (!currentUser) {
+        setMessage({ text: 'Você precisa estar logado como Admin.', type: 'error' });
+        setLoading(false);
+        return;
     }
 
-    // Simulação de chamada de API para criar o usuário
-    // A senha seria geralmente definida por um link enviado ao email do usuário
-    console.log('Novo usuário a ser cadastrado:', {
-      name,
-      email,
-      type: userType,
-    });
+    // Mapeando para o que o Java espera (provavelmente "ADMIN" ou "PROFESSOR")
+    const typeToSend = userType.toUpperCase(); 
 
-    setMessage({ text: `Usuário '${name}' cadastrado com sucesso como ${userType}!`, type: 'success' });
+    const payload = {
+        nome: name,
+        email: email,
+        tipo: typeToSend
+        // senha é gerada pelo backend
+    };
 
-    // Limpar o formulário
-    setName('');
-    setEmail('');
-    setUserType('Professor');
+    try {
+        // Chama o endpoint: /usuarios/cadastrar/{adminId}
+        const res = await fetch(`${API_URL}/usuarios/cadastrar/${currentUser.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            setMessage({ 
+                text: `Usuário cadastrado com sucesso! A senha foi enviada para o email (ou console do servidor).`, 
+                type: 'success' 
+            });
+            setName('');
+            setEmail('');
+        } else {
+            // Tenta pegar mensagem de erro do backend ou status
+            setMessage({ text: 'Erro ao cadastrar. Verifique se você é admin ou se o email já existe.', type: 'error' });
+        }
+    } catch (error) {
+        console.error(error);
+        setMessage({ text: 'Falha na conexão com o servidor.', type: 'error' });
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -43,9 +70,7 @@ export default function NewUserPage() {
       <form onSubmit={handleSubmit} className="bg-white p-8 shadow-md rounded-lg space-y-6">
         {/* Campo Nome */}
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Nome Completo
-          </label>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
@@ -62,9 +87,7 @@ export default function NewUserPage() {
 
         {/* Campo Email */}
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
@@ -81,9 +104,7 @@ export default function NewUserPage() {
 
         {/* Campo Tipo de Perfil */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tipo de Perfil
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Perfil</label>
           <div className="flex items-center gap-6 p-3 bg-gray-50 border rounded-md">
             <Shield className="text-gray-500" size={20} />
             <div className="flex items-center gap-6">
@@ -126,9 +147,10 @@ export default function NewUserPage() {
           )}
           <button
             type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            disabled={loading}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            Cadastrar Usuário
+            {loading ? 'Cadastrando...' : 'Cadastrar Usuário'}
           </button>
         </div>
       </form>

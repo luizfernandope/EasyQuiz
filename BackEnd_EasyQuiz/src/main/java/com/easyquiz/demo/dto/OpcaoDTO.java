@@ -1,5 +1,4 @@
 package com.easyquiz.demo.dto;
-
 import lombok.Data;
 
 @Data

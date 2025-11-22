@@ -1,118 +1,178 @@
-// Adiciona a diretiva "use client" no topo
 'use client'; 
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { API_URL, getLoggedUser } from '@/services/api';
+import { useRouter } from 'next/navigation';
 
-// Tipos para nossos estados (boa prática em TypeScript)
 type TipoPergunta = 'Multipla Escolha' | 'Dissertativa' | 'Verdadeiro/Falso';
-type NivelDificuldade = 'Fácil' | 'Médio' | 'Difícil';
+
+// Interface para as Opções
+type OpcaoState = {
+  texto: string;
+  correta: boolean;
+}
+
+type Disciplina = {
+  id: number;
+  nome: string;
+}
 
 export default function NewQuestionPage() {
-  // Estado para controlar o tipo de pergunta selecionado
+  const router = useRouter();
   const [tipoPergunta, setTipoPergunta] = useState<TipoPergunta>('Multipla Escolha');
+  const [enunciado, setEnunciado] = useState('');
+  const [dificuldade, setDificuldade] = useState('Fácil');
+  const [disciplinaId, setDisciplinaId] = useState<number | ''>('');
+  
+  // Estado para as opções
+  const [opcoes, setOpcoes] = useState<OpcaoState[]>([
+    { texto: '', correta: false },
+    { texto: '', correta: false },
+    { texto: '', correta: false },
+    { texto: '', correta: false }
+  ]);
 
-  // --- Componentes Internos para Opções Dinâmicas ---
-  // (Vamos criar os componentes para cada tipo de resposta aqui)
+  const [listaDisciplinas, setListaDisciplinas] = useState<Disciplina[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Componente para Múltipla Escolha
-  const OpcoesMultiplaEscolha = () => {
-    return (
-      <div className="space-y-3">
-        <div className="bg-gray-50 p-4 rounded-md border">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">Opções de Resposta (4 obrigatórias)</h3>
-              <span className="text-xs text-gray-500">Marque a opção correta</span>
-        </div>
-        {/* Quatro opções fixas para múltipla escolha */}
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <label key={i} className="flex items-center space-x-3">
-              <input
-                type="radio"
-                name="opcao_correta"
-                className="mr-1"
-                value={`opcao_${i}`}
-                aria-label={`Marcar opção ${i} como correta`}
-              />
-              <input
-                type="text"
-                className="flex-1 p-2 border rounded-md"
-                placeholder={`Opção ${i}`}
-                aria-label={`Texto da opção ${i}`}
-              />
-            </label>
-          ))}
-        </div>
-        </div>
-      </div>
+  // Carregar Disciplinas
+  useEffect(() => {
+    fetch(`${API_URL}/disciplina/listar`)
+      .then(res => res.json())
+      .then(data => {
+        setListaDisciplinas(data);
+        if (data.length > 0) setDisciplinaId(data[0].id);
+      })
+      .catch(err => console.error("Erro ao carregar disciplinas:", err));
+  }, []);
+
+  // Handler para mudança de texto das opções (Imutável)
+  const handleOptionTextChange = (index: number, text: string) => {
+    const novas = opcoes.map((op, i) => 
+      i === index ? { ...op, texto: text } : op
     );
+    setOpcoes(novas);
   };
 
-  // Componente para Verdadeiro/Falso
-  const OpcoesVerdadeiroFalso = () => {
-    return (
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          Resposta Correta
-        </label>
-        <div className="flex items-center space-x-4">
-          <label className="flex items-center">
-            <input type="radio" name="vf_correta" className="mr-1" value="verdadeiro" />
-            Verdadeiro
-          </label>
-          <label className="flex items-center">
-            <input type="radio" name="vf_correta" className="mr-1" value="falso" />
-            Falso
-          </label>
-        </div>
-      </div>
-    );
+  // Handler para definir qual opção é correta
+  const handleOptionCorrectChange = (index: number) => {
+    const novas = opcoes.map((op, i) => ({
+      ...op,
+      correta: i === index // Apenas o índice clicado vira true
+    }));
+    setOpcoes(novas);
   };
 
-  // --- Renderização Principal ---
+  // Handler para Verdadeiro ou Falso
+  const handleVFChange = (valorCorreto: 'Verdadeiro' | 'Falso') => {
+    setOpcoes([
+      { texto: 'Verdadeiro', correta: valorCorreto === 'Verdadeiro' },
+      { texto: 'Falso', correta: valorCorreto === 'Falso' }
+    ]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const user = getLoggedUser();
+    if (!user) {
+      alert('Você precisa estar logado.');
+      router.push('/auth/sign-in');
+      return;
+    }
+
+    // Validações básicas
+    if (tipoPergunta === 'Multipla Escolha') {
+        if (opcoes.some(o => o.texto.trim() === '')) {
+            alert('Preencha todas as opções.');
+            setLoading(false);
+            return;
+        }
+        if (!opcoes.some(o => o.correta)) {
+            alert('Selecione qual opção é a correta.');
+            setLoading(false);
+            return;
+        }
+    }
+
+    if (tipoPergunta === 'Verdadeiro/Falso' && !opcoes.length) {
+        alert('Selecione se a afirmação é Verdadeira ou Falsa.');
+        setLoading(false);
+        return;
+    }
+
+    const payload = {
+      enunciado: enunciado,
+      dificuldade: dificuldade,
+      tipo: tipoPergunta,
+      disciplinaId: Number(disciplinaId),
+      criadorId: user.id,
+      opcoes: tipoPergunta === 'Dissertativa' ? [] : opcoes
+    };
+
+    try {
+      const response = await fetch(`${API_URL}/questao/cadastrar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        alert('Questão criada com sucesso!');
+        router.push('/dashboard/questions'); 
+      } else {
+        const errorData = await response.text();
+        alert('Erro ao criar questão: ' + errorData);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Erro de conexão.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Criar Nova Questão</h1>
       
-      <form className="bg-white p-6 shadow rounded-lg space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white p-6 shadow rounded-lg space-y-6">
         
-        {/* 1. Enunciado */}
+        {/* Enunciado */}
         <div>
-          <label htmlFor="enunciado" className="block text-sm font-medium text-gray-700">
-            Enunciado da Questão
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Enunciado</label>
           <textarea
-            id="enunciado"
             rows={4}
-            className="w-full mt-1 p-2 border rounded-md"
+            className="w-full mt-1 p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
             placeholder="Digite o enunciado aqui..."
+            value={enunciado}
+            onChange={e => setEnunciado(e.target.value)}
+            required
           />
         </div>
 
-        {/* 2. Linha de Filtros (Disciplina e Dificuldade) */}
+        {/* Filtros */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Disciplina (Placeholder - idealmente viria do DB) */}
           <div>
-            <label htmlFor="disciplina" className="block text-sm font-medium text-gray-700">
-              Disciplina
-            </label>
-            <select id="disciplina" className="w-full mt-1 p-2 border rounded-md">
-              <option>Cálculo 1</option>
-              <option>Engenharia de Software</option>
-              <option>Banco de Dados</option>
+            <label className="block text-sm font-medium text-gray-700">Disciplina</label>
+            <select 
+                className="w-full mt-1 p-2 border rounded-md"
+                value={disciplinaId}
+                onChange={e => setDisciplinaId(Number(e.target.value))}
+            >
+                {listaDisciplinas.map(d => (
+                    <option key={d.id} value={d.id}>{d.nome}</option>
+                ))}
             </select>
           </div>
 
-          {/* Nível de Dificuldade */}
           <div>
-            <label htmlFor="dificuldade" className="block text-sm font-medium text-gray-700">
-              Nível de Dificuldade
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Dificuldade</label>
             <select 
-              id="dificuldade" 
-              className="w-full mt-1 p-2 border rounded-md"
-              defaultValue="Fácil"
+                className="w-full mt-1 p-2 border rounded-md"
+                value={dificuldade}
+                onChange={e => setDificuldade(e.target.value)}
             >
               <option value="Fácil">Fácil</option>
               <option value="Médio">Médio</option>
@@ -121,65 +181,114 @@ export default function NewQuestionPage() {
           </div>
         </div>
 
-        {/* 3. Tipo de Pergunta */}
+        {/* Tipo */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Tipo de Pergunta
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Tipo de Pergunta</label>
           <div className="flex space-x-4 mt-2">
-            <label className="flex items-center">
-              <input 
-                type="radio" 
-                name="tipo_pergunta" 
-                value="Multipla Escolha"
-                checked={tipoPergunta === 'Multipla Escolha'}
-                onChange={() => setTipoPergunta('Multipla Escolha')}
-              />
-              <span className="ml-2">Múltipla Escolha</span>
-            </label>
-            <label className="flex items-center">
-              <input 
-                type="radio" 
-                name="tipo_pergunta" 
-                value="Dissertativa"
-                checked={tipoPergunta === 'Dissertativa'}
-                onChange={() => setTipoPergunta('Dissertativa')}
-              />
-              <span className="ml-2">Dissertativa</span>
-            </label>
-            <label className="flex items-center">
-              <input 
-                type="radio" 
-                name="tipo_pergunta" 
-                value="Verdadeiro/Falso"
-                checked={tipoPergunta === 'Verdadeiro/Falso'}
-                onChange={() => setTipoPergunta('Verdadeiro/Falso')}
-              />
-              <span className="ml-2">Verdadeiro/Falso</span>
-            </label>
+            {(['Multipla Escolha', 'Dissertativa', 'Verdadeiro/Falso'] as const).map(t => (
+                <label key={t} className="flex items-center cursor-pointer">
+                    <input 
+                        type="radio" 
+                        name="tipo_pergunta" 
+                        value={t}
+                        checked={tipoPergunta === t}
+                        onChange={() => {
+                            setTipoPergunta(t);
+                            if (t === 'Multipla Escolha') {
+                                // Reseta para 4 opções vazias
+                                setOpcoes(Array(4).fill({ texto: '', correta: false }).map(o => ({...o}))); 
+                            } else {
+                                setOpcoes([]);
+                            }
+                        }}
+                        className="mr-2"
+                    />
+                    {t}
+                </label>
+            ))}
           </div>
         </div>
 
-        {/* 4. Opções de Resposta (Renderização Condicional) */}
+        {/* Área Condicional de Opções */}
         <div className="border-t pt-4">
-          {tipoPergunta === 'Multipla Escolha' && <OpcoesMultiplaEscolha />}
-          {tipoPergunta === 'Verdadeiro/Falso' && <OpcoesVerdadeiroFalso />}
+          
+          {/* CASO 1: Múltipla Escolha */}
+          {tipoPergunta === 'Multipla Escolha' && (
+            <div className="bg-gray-50 p-4 rounded-md border space-y-3">
+                <div className="flex justify-between text-sm text-gray-600 font-semibold">
+                    <span>Texto da Opção</span>
+                    <span>Correta?</span>
+                </div>
+                {opcoes.map((op, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      className="flex-1 p-2 border rounded-md focus:outline-none focus:border-blue-500"
+                      placeholder={`Opção ${i + 1}`}
+                      value={op.texto}
+                      onChange={(e) => handleOptionTextChange(i, e.target.value)}
+                      required
+                    />
+                    <input
+                      type="radio"
+                      name="opcao_correta_multipla" // Nome único para agrupar
+                      className="w-5 h-5 cursor-pointer"
+                      checked={op.correta}
+                      onChange={() => handleOptionCorrectChange(i)}
+                      required
+                    />
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* CASO 2: Verdadeiro / Falso */}
+          {tipoPergunta === 'Verdadeiro/Falso' && (
+            <div className="bg-gray-50 p-4 rounded-md border space-y-3">
+               <p className="text-sm text-gray-600 font-semibold">A afirmação do enunciado é:</p>
+               <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="vf_group"
+                      className="w-4 h-4"
+                      // Verifica se a opção "Verdadeiro" existe e é a correta
+                      checked={opcoes.length > 0 && opcoes[0].texto === 'Verdadeiro' && opcoes[0].correta}
+                      onChange={() => handleVFChange('Verdadeiro')}
+                    /> 
+                    Verdadeiro
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="vf_group"
+                      className="w-4 h-4"
+                      // Verifica se a opção "Falso" existe e é a correta
+                      checked={opcoes.length > 0 && opcoes[1].texto === 'Falso' && opcoes[1].correta}
+                      onChange={() => handleVFChange('Falso')}
+                    /> 
+                    Falso
+                  </label>
+               </div>
+            </div>
+          )}
+
+          {/* CASO 3: Dissertativa */}
           {tipoPergunta === 'Dissertativa' && (
-            <p className="text-gray-500 text-sm">
-              Questões dissertativas não exigem opções de resposta.
+            <p className="text-gray-500 text-sm italic bg-gray-50 p-4 rounded border">
+              Questões dissertativas não exigem cadastro de alternativas. O aluno responderá com texto livre.
             </p>
           )}
         </div>
 
-       
-
-        {/* 6. Botão de Salvar */}
+        {/* Botão Salvar */}
         <div className="text-right">
           <button
             type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+            disabled={loading}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            Salvar Questão
+            {loading ? 'Salvando...' : 'Salvar Questão'}
           </button>
         </div>
 

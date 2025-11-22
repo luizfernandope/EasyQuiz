@@ -1,51 +1,34 @@
+'use client';
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import QuestionListItem from "@/components/QuestionListItem";
+import { API_URL } from "@/services/api";
 
-type MockQuestao = {
-  id: string;
+// Tipo vindo da API (QuestaoDTO)
+type QuestaoDTO = {
+  id: number;
   enunciado: string;
-  tipo: "Multipla Escolha" | "Dissertativa" | "Verdadeiro/Falso";
-  dificuldade: "Fácil" | "Médio" | "Difícil";
-  isPublica: boolean;
+  tipo: 'Multipla Escolha' | 'Dissertativa' | 'Verdadeiro/Falso';
+  dificuldade: 'Fácil' | 'Médio' | 'Difícil';
   disciplina: string;
-  opcoes?: string[]; // ? indica que é opcional
-  resposta?: string; // ? indica que é opcional
+  opcoes: { id: number; texto: string; correta: boolean }[];
+  respostaCorreta: string;
+  nomeCriador: string;
 };
 
-const minhasQuestoes: MockQuestao[] = [
-  {
-    id: "101",
-    enunciado: "Qual é a capital do Brasil?",
-    tipo: "Multipla Escolha",
-    dificuldade: "Fácil",
-    isPublica: true,
-    disciplina: "Geografia",
-    opcoes: ["Brasília", "Rio de Janeiro", "São Paulo", "Salvador"],
-    resposta: "Brasília"
-  },
-  {
-    id: "102",
-    enunciado: "Descreva o processo de normalização de um banco de dados.",
-    tipo: "Dissertativa",
-    dificuldade: "Médio",
-    isPublica: false,
-    disciplina: "Banco de Dados",
-    opcoes: [],
-    resposta: ""
-  },
-  {
-    id: "103",
-    enunciado: "O Sol gira em torno da Terra.",
-    tipo: "Verdadeiro/Falso",
-    dificuldade: "Fácil",
-    isPublica: true,
-    disciplina: "Astronomia",
-    opcoes: ["Verdadeiro", "Falso"],
-    resposta: "Falso"
-  },
-];
-
 export default function MyQuestionsPage() {
+  const [questions, setQuestions] = useState<QuestaoDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_URL}/questao/browse`) // Usa o endpoint que retorna o DTO formatado
+      .then(res => res.json())
+      .then(data => setQuestions(data))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -58,31 +41,26 @@ export default function MyQuestionsPage() {
         </Link>
       </div>
 
-      {/* Lista de Questões */}
+      {loading && <p className="text-center text-gray-500">Carregando questões...</p>}
+
       <div className="space-y-4">
-        {minhasQuestoes.map((questao) => (
+        {!loading && questions.map((q) => (
           <QuestionListItem
-            key={questao.id}
-            id={questao.id}
-            enunciado={questao.enunciado}
-            tipo={questao.tipo}
-            dificuldade={questao.dificuldade}
-            disciplina={questao.disciplina}
-            opcoes={questao.opcoes}
-            resposta={questao.resposta}
+            key={q.id}
+            id={q.id.toString()}
+            enunciado={q.enunciado}
+            tipo={q.tipo}
+            dificuldade={q.dificuldade}
+            disciplina={q.disciplina || 'Sem disciplina'}
+            // Mapeia as opções para string simples para o componente visual
+            opcoes={q.opcoes?.map(o => o.texto)}
+            resposta={q.respostaCorreta}
           />
         ))}
 
-        {/* Estado Vazio (se não houver questões) */}
-        {minhasQuestoes.length === 0 && (
+        {!loading && questions.length === 0 && (
           <div className="bg-white p-6 shadow rounded-lg text-center text-gray-500">
-            <p>Você ainda não criou nenhuma questão.</p>
-            <Link
-              href="/dashboard/questions/new"
-              className="text-blue-600 hover:underline mt-2 inline-block"
-            >
-              Comece a criar agora!
-            </Link>
+            <p>Nenhuma questão encontrada no banco de dados.</p>
           </div>
         )}
       </div>
