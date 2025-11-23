@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 
 type TipoPergunta = 'Multipla Escolha' | 'Dissertativa' | 'Verdadeiro/Falso';
 
-// Interface para as Opções
 type OpcaoState = {
   texto: string;
   correta: boolean;
@@ -24,7 +23,6 @@ export default function NewQuestionPage() {
   const [dificuldade, setDificuldade] = useState('Fácil');
   const [disciplinaId, setDisciplinaId] = useState<number | ''>('');
   
-  // Estado para as opções
   const [opcoes, setOpcoes] = useState<OpcaoState[]>([
     { texto: '', correta: false },
     { texto: '', correta: false },
@@ -35,18 +33,39 @@ export default function NewQuestionPage() {
   const [listaDisciplinas, setListaDisciplinas] = useState<Disciplina[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carregar Disciplinas
+  // Carregar Disciplinas com base no usuário
   useEffect(() => {
-    fetch(`${API_URL}/disciplina/listar`)
-      .then(res => res.json())
-      .then(data => {
-        setListaDisciplinas(data);
-        if (data.length > 0) setDisciplinaId(data[0].id);
-      })
-      .catch(err => console.error("Erro ao carregar disciplinas:", err));
+    const user = getLoggedUser();
+    if(!user) return;
+
+    const fetchDisciplinas = async () => {
+        try {
+            let url = `${API_URL}/disciplina/listar`; 
+            
+            if (user.tipo === 'PROFESSOR') {
+                url = `${API_URL}/professordisciplina/listarPorIDProfessor/${user.id}`;
+            }
+
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (user.tipo === 'PROFESSOR') {
+                const disciplinasMapeadas = data.map((pd: any) => pd.disciplina);
+                setListaDisciplinas(disciplinasMapeadas);
+                if (disciplinasMapeadas.length > 0) setDisciplinaId(disciplinasMapeadas[0].id);
+            } else {
+                setListaDisciplinas(data);
+                if (data.length > 0) setDisciplinaId(data[0].id);
+            }
+
+        } catch (err) {
+            console.error("Erro ao carregar disciplinas:", err);
+        }
+    };
+
+    fetchDisciplinas();
   }, []);
 
-  // Handler para mudança de texto das opções (Imutável)
   const handleOptionTextChange = (index: number, text: string) => {
     const novas = opcoes.map((op, i) => 
       i === index ? { ...op, texto: text } : op
@@ -54,16 +73,14 @@ export default function NewQuestionPage() {
     setOpcoes(novas);
   };
 
-  // Handler para definir qual opção é correta
   const handleOptionCorrectChange = (index: number) => {
     const novas = opcoes.map((op, i) => ({
       ...op,
-      correta: i === index // Apenas o índice clicado vira true
+      correta: i === index 
     }));
     setOpcoes(novas);
   };
 
-  // Handler para Verdadeiro ou Falso
   const handleVFChange = (valorCorreto: 'Verdadeiro' | 'Falso') => {
     setOpcoes([
       { texto: 'Verdadeiro', correta: valorCorreto === 'Verdadeiro' },
@@ -82,7 +99,6 @@ export default function NewQuestionPage() {
       return;
     }
 
-    // Validações básicas
     if (tipoPergunta === 'Multipla Escolha') {
         if (opcoes.some(o => o.texto.trim() === '')) {
             alert('Preencha todas as opções.');
@@ -98,6 +114,12 @@ export default function NewQuestionPage() {
 
     if (tipoPergunta === 'Verdadeiro/Falso' && !opcoes.length) {
         alert('Selecione se a afirmação é Verdadeira ou Falsa.');
+        setLoading(false);
+        return;
+    }
+
+    if (!disciplinaId) {
+        alert('Selecione uma disciplina.');
         setLoading(false);
         return;
     }
@@ -139,7 +161,6 @@ export default function NewQuestionPage() {
       
       <form onSubmit={handleSubmit} className="bg-white p-6 shadow rounded-lg space-y-6">
         
-        {/* Enunciado */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Enunciado</label>
           <textarea
@@ -152,7 +173,6 @@ export default function NewQuestionPage() {
           />
         </div>
 
-        {/* Filtros */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Disciplina</label>
@@ -160,7 +180,9 @@ export default function NewQuestionPage() {
                 className="w-full mt-1 p-2 border rounded-md"
                 value={disciplinaId}
                 onChange={e => setDisciplinaId(Number(e.target.value))}
+                required
             >
+                {listaDisciplinas.length === 0 && <option value="">Nenhuma disciplina disponível</option>}
                 {listaDisciplinas.map(d => (
                     <option key={d.id} value={d.id}>{d.nome}</option>
                 ))}
@@ -181,7 +203,6 @@ export default function NewQuestionPage() {
           </div>
         </div>
 
-        {/* Tipo */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Tipo de Pergunta</label>
           <div className="flex space-x-4 mt-2">
@@ -195,7 +216,6 @@ export default function NewQuestionPage() {
                         onChange={() => {
                             setTipoPergunta(t);
                             if (t === 'Multipla Escolha') {
-                                // Reseta para 4 opções vazias
                                 setOpcoes(Array(4).fill({ texto: '', correta: false }).map(o => ({...o}))); 
                             } else {
                                 setOpcoes([]);
@@ -209,10 +229,7 @@ export default function NewQuestionPage() {
           </div>
         </div>
 
-        {/* Área Condicional de Opções */}
         <div className="border-t pt-4">
-          
-          {/* CASO 1: Múltipla Escolha */}
           {tipoPergunta === 'Multipla Escolha' && (
             <div className="bg-gray-50 p-4 rounded-md border space-y-3">
                 <div className="flex justify-between text-sm text-gray-600 font-semibold">
@@ -231,7 +248,7 @@ export default function NewQuestionPage() {
                     />
                     <input
                       type="radio"
-                      name="opcao_correta_multipla" // Nome único para agrupar
+                      name="opcao_correta_multipla" 
                       className="w-5 h-5 cursor-pointer"
                       checked={op.correta}
                       onChange={() => handleOptionCorrectChange(i)}
@@ -242,7 +259,6 @@ export default function NewQuestionPage() {
             </div>
           )}
 
-          {/* CASO 2: Verdadeiro / Falso */}
           {tipoPergunta === 'Verdadeiro/Falso' && (
             <div className="bg-gray-50 p-4 rounded-md border space-y-3">
                <p className="text-sm text-gray-600 font-semibold">A afirmação do enunciado é:</p>
@@ -252,7 +268,6 @@ export default function NewQuestionPage() {
                       type="radio" 
                       name="vf_group"
                       className="w-4 h-4"
-                      // Verifica se a opção "Verdadeiro" existe e é a correta
                       checked={opcoes.length > 0 && opcoes[0].texto === 'Verdadeiro' && opcoes[0].correta}
                       onChange={() => handleVFChange('Verdadeiro')}
                     /> 
@@ -263,7 +278,6 @@ export default function NewQuestionPage() {
                       type="radio" 
                       name="vf_group"
                       className="w-4 h-4"
-                      // Verifica se a opção "Falso" existe e é a correta
                       checked={opcoes.length > 0 && opcoes[1].texto === 'Falso' && opcoes[1].correta}
                       onChange={() => handleVFChange('Falso')}
                     /> 
@@ -273,7 +287,6 @@ export default function NewQuestionPage() {
             </div>
           )}
 
-          {/* CASO 3: Dissertativa */}
           {tipoPergunta === 'Dissertativa' && (
             <p className="text-gray-500 text-sm italic bg-gray-50 p-4 rounded border">
               Questões dissertativas não exigem cadastro de alternativas. O aluno responderá com texto livre.
@@ -281,7 +294,6 @@ export default function NewQuestionPage() {
           )}
         </div>
 
-        {/* Botão Salvar */}
         <div className="text-right">
           <button
             type="submit"

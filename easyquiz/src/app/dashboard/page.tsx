@@ -3,50 +3,55 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Plus, FileText, CheckSquare, BarChart2, User, BookOpen, UserRoundPlus, History, Loader2 } from 'lucide-react';
-import { API_URL } from '@/services/api';
+import { API_URL, getLoggedUser } from '@/services/api';
 
-// Atalhos para as principais ações (Estático)
 const atalhos = [
   {
     nome: 'Criar Nova Questão',
     href: '/dashboard/questions/new',
     icone: <Plus size={20} className="mr-2" />,
     descricao: 'Adicionar uma nova questão ao seu banco pessoal.',
+    adminOnly: false
   },
   {
     nome: 'Gerar Nova Prova',
     href: '/dashboard/generator',
     icone: <FileText size={20} className="mr-2" />,
     descricao: 'Criar uma prova customizada usando filtros.',
+    adminOnly: false
   },
   {
     nome: 'Editar Perfil',
     href: '/dashboard/profile',
     icone: <User size={20} className="mr-2" />,
     descricao: 'Editar as informações do seu perfil.',
+    adminOnly: false
   },
   {
     nome: 'Cadastrar Disciplinas',
     href: '/dashboard/disciplinas',
     icone: <BookOpen size={20} className="mr-2" />,
     descricao: 'Cadastrar novas opções de disciplinas.',
+    adminOnly: true
   },
   {
     nome: 'Cadastrar Novo Usuário',
     href: '/dashboard/users/new',
     icone: <UserRoundPlus size={20} className="mr-2" />,
     descricao: 'Cadastrar um novo usuário no sistema.',
+    adminOnly: true
   },
   {
     nome: 'Ver Registros',
     href: '/dashboard/logs',
     icone: <History size={20} className="mr-2" />,
     descricao: 'Visualizar logs e registros do sistema.',
+    adminOnly: true
   }
 ];
 
 export default function DashboardPage() {
-  // Estado para armazenar os números vindos da API
+  const [user, setUser] = useState<any>(null);
   const [counts, setCounts] = useState({
     total: 0,
     multipla: 0,
@@ -56,23 +61,32 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Busca os dados reais do backend
-    fetch(`${API_URL}/questao/stats`)
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error('Erro ao buscar estatísticas');
-      })
-      .then(data => {
-        setCounts(data);
-      })
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
+    const logged = getLoggedUser();
+    setUser(logged);
+
+    if (logged) {
+        let url = `${API_URL}/questao/stats`; 
+
+        if (logged.tipo === 'PROFESSOR') {
+            url = `${API_URL}/questao/stats/personal/${logged.id}`;
+        }
+
+        fetch(url)
+        .then(res => {
+            if (res.ok) return res.json();
+            throw new Error('Erro ao buscar estatísticas');
+        })
+        .then(data => {
+            setCounts(data);
+        })
+        .catch(err => console.error(err))
+        .finally(() => setLoading(false));
+    }
   }, []);
 
-  // Array de estatísticas dinâmico
   const statsCards = [
     {
-      nome: 'Questões Geradas',
+      nome: 'Questões Criadas', 
       valor: counts.total,
       icone: <CheckSquare size={24} className="text-blue-600" />,
     },
@@ -95,13 +109,14 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* 1. Cabeçalho */}
-      <h1 className="text-3xl font-bold mb-2">Painel - Visão Geral</h1>
+      <h1 className="text-3xl font-bold mb-2">
+         Painel - {user?.tipo === 'ADMIN' ? 'Visão Geral (Admin)' : 'Minhas Estatísticas'}
+      </h1>
       <p className="text-lg text-gray-600 mb-8">
-        Aqui você gerencia suas questões e perfil de forma rápida.
+        Bem-vindo, {user?.nome}. Aqui está o resumo das suas atividades.
       </p>
 
-      {/* 2. Cards de Estatísticas (Dinâmicos) */}
+      {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {statsCards.map((stat) => (
           <div 
@@ -123,11 +138,13 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* 3. Atalhos Rápidos */}
+      {/* Atalhos Rápidos (Filtrados por permissão) */}
       <div>
         <h2 className="text-2xl font-semibold mb-4">Ações Rápidas</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {atalhos.map((atalho) => (
+          {atalhos
+            .filter(item => !item.adminOnly || (user && user.tipo === 'ADMIN'))
+            .map((atalho) => (
             <Link 
               key={atalho.nome}
               href={atalho.href}

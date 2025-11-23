@@ -45,6 +45,11 @@ public class QuestaoController {
     public List<Questao> listar() {
         return repository.findAll();
     }
+    
+    @GetMapping("/porCriador/{id}")
+    public List<QuestaoDTO> listarPorCriador(@PathVariable Integer id) {
+        return questaoService.listarPorCriador(id);
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<QuestaoDTO> obterPorId(@PathVariable Integer id) {
@@ -53,7 +58,6 @@ public class QuestaoController {
         return ResponseEntity.notFound().build();
     }
 
-    // --- CADASTRAR ---
     @PostMapping("/cadastrar")
     public ResponseEntity<?> cadastrarCompleta(@RequestBody QuestaoDTO dto) {
         try {
@@ -63,7 +67,6 @@ public class QuestaoController {
 
             Questao questao = new Questao();
             String enunciado = dto.getEnunciado();
-            // Proteção para o limite de caracteres do título
             questao.setTitulo(enunciado.length() > 50 ? enunciado.substring(0, 50) : enunciado);
             questao.setDescricao(enunciado);
             
@@ -72,12 +75,10 @@ public class QuestaoController {
             questao.setDataCriacao(LocalDateTime.now());
             questao.setDataUltimaModificacao(LocalDateTime.now());
 
-            // Associa Disciplina
             if (dto.getDisciplinaId() != null) {
                 disciplinaRepository.findById(dto.getDisciplinaId()).ifPresent(questao::setDisciplina);
             }
 
-            // Associa Criador
             if (dto.getCriadorId() != null) {
                 Optional<Usuario> user = usuarioRepository.findById(dto.getCriadorId());
                 if (user.isPresent()) {
@@ -89,10 +90,8 @@ public class QuestaoController {
                 return ResponseEntity.badRequest().body("ID do criador é obrigatório.");
             }
 
-            // Salva a Questão
             Questao salva = repository.save(questao);
 
-            // Salva as Opções
             if (dto.getOpcoes() != null && !dto.getOpcoes().isEmpty()) {
                 List<OpcaoResposta> novasOpcoes = new ArrayList<>();
                 for (var optDto : dto.getOpcoes()) {
@@ -105,8 +104,6 @@ public class QuestaoController {
                 }
 
                 if (salva.getOpcoes() == null) salva.setOpcoes(new ArrayList<>());
-                
-                // Limpa e adiciona para evitar erro de orphan deletion do Hibernate
                 salva.getOpcoes().clear();
                 salva.getOpcoes().addAll(novasOpcoes);
 
@@ -121,7 +118,6 @@ public class QuestaoController {
         }
     }
 
-    // --- ATUALIZAR (EDITAR) ---
     @PutMapping("/update/{id}")
     public ResponseEntity<?> atualizarQuestao(@PathVariable Integer id, @RequestBody QuestaoDTO dto) {
         try {
@@ -132,7 +128,6 @@ public class QuestaoController {
 
             Questao questao = questaoOpt.get();
 
-            // Atualiza campos básicos
             String enunciado = dto.getEnunciado();
             if (enunciado != null && !enunciado.trim().isEmpty()) {
                 questao.setTitulo(enunciado.length() > 50 ? enunciado.substring(0, 50) : enunciado);
@@ -143,12 +138,10 @@ public class QuestaoController {
             questao.setTipo(dto.getTipo());
             questao.setDataUltimaModificacao(LocalDateTime.now());
 
-            // Atualiza Disciplina
             if (dto.getDisciplinaId() != null) {
                 disciplinaRepository.findById(dto.getDisciplinaId()).ifPresent(questao::setDisciplina);
             }
 
-            // Atualiza Opções
             if (dto.getOpcoes() != null) {
                 List<OpcaoResposta> novasOpcoes = new ArrayList<>();
                 for (var optDto : dto.getOpcoes()) {
@@ -176,7 +169,6 @@ public class QuestaoController {
         }
     }
 
-    // --- DELETAR ---
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Integer id) {
         if (repository.existsById(id)) {
@@ -186,17 +178,28 @@ public class QuestaoController {
         return ResponseEntity.notFound().build();
     }
 
-    // --- ESTATÍSTICAS (DASHBOARD) ---
+    // --- ESTATÍSTICAS GERAIS (ADMIN) ---
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Long>> getEstatisticas() {
         Map<String, Long> stats = new HashMap<>();
         
-        
         stats.put("total", repository.count());
-
         stats.put("multipla", repository.countByTipo("Multipla Escolha"));
         stats.put("vf", repository.countByTipo("Verdadeiro/Falso"));
         stats.put("dissertativa", repository.countByTipo("Dissertativa"));
+        
+        return ResponseEntity.ok(stats);
+    }
+
+    // --- ESTATÍSTICAS PESSOAIS (PROFESSOR) ---
+    @GetMapping("/stats/personal/{id}")
+    public ResponseEntity<Map<String, Long>> getEstatisticasPorCriador(@PathVariable Integer id) {
+        Map<String, Long> stats = new HashMap<>();
+        
+        stats.put("total", repository.countByCriadoPorId(id));
+        stats.put("multipla", repository.countByCriadoPorIdAndTipo(id, "Multipla Escolha"));
+        stats.put("vf", repository.countByCriadoPorIdAndTipo(id, "Verdadeiro/Falso"));
+        stats.put("dissertativa", repository.countByCriadoPorIdAndTipo(id, "Dissertativa"));
         
         return ResponseEntity.ok(stats);
     }

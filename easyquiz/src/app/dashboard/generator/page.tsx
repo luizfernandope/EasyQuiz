@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileText, Search, BookCheck } from 'lucide-react';
+import { FileText, Search, BookCheck, Trash2, X, Loader2 } from 'lucide-react';
 import QuestionForExame from '../../../components/QuestionForExame';
-import { API_URL } from '@/services/api';
+import { API_URL, getLoggedUser } from '@/services/api';
 
-// Tipos para os dados da API
+// Tipos
 type Disciplina = {
   id: number;
   nome: string;
@@ -15,107 +15,106 @@ type QuestaoAPI = {
   id: number;
   enunciado: string;
   disciplina: string; 
-  dificuldade: 'Fácil' | 'Médio' | 'Difícil'; // Tipagem mais estrita para bater com o componente filho
+  dificuldade: 'Fácil' | 'Médio' | 'Difícil';
   tipo: string;
   nomeCriador: string;
   opcoes?: { texto: string; correta: boolean }[];
 };
 
 export default function TestGeneratorPage() {
-  // Form / meta da prova
+  // Meta da prova
   const [tituloProva, setTituloProva] = useState('');
   const [universidade, setUniversidade] = useState('');
   const [curso, setCurso] = useState('');
   const [disciplinaNome, setDisciplinaNome] = useState('');
   const [professor, setProfessor] = useState('');
-  const [turma, setTurma] = useState('');
 
-  // Dados REAIS do Backend
+  // Dados
   const [allQuestions, setAllQuestions] = useState<QuestaoAPI[]>([]);
   const [disciplinasOptions, setDisciplinasOptions] = useState<Disciplina[]>([]);
-  
-  // Estado de carregamento
   const [loading, setLoading] = useState(true);
 
-  // Filtros da coluna esquerda
+  // Filtros
   const [searchText, setSearchText] = useState('');
   const [filterCriador, setFilterCriador] = useState('Todos');
-  const [filterTipo, setFilterTipo] = useState('Todos');
-  const [filterDificuldade, setFilterDificuldade] = useState('Todos');
   const [filterDisciplina, setFilterDisciplina] = useState('Todos');
+  const [filterDificuldade, setFilterDificuldade] = useState('Todos');
+  const [filterTipo, setFilterTipo] = useState('Todos');
 
-  // Questões selecionadas para a prova (coluna direita)
+  // Seleção
   const [selectedQuestions, setSelectedQuestions] = useState<QuestaoAPI[]>([]);
 
-  // --- 1. BUSCAR DADOS DA API ---
+  // 1. Carregar Dados
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      const user = getLoggedUser();
+      if (!user) return;
+
       try {
-        // Busca Questões
         const resQ = await fetch(`${API_URL}/questao/browse`);
-        if (resQ.ok) {
-            const dataQ = await resQ.json();
-            setAllQuestions(dataQ);
+        
+        // Lógica de Disciplinas
+        let urlDisc = `${API_URL}/disciplina/listar`;
+        if (user.tipo === 'PROFESSOR') {
+             urlDisc = `${API_URL}/professordisciplina/listarPorIDProfessor/${user.id}`;
         }
 
-        // Busca Disciplinas (para o filtro)
-        const resD = await fetch(`${API_URL}/disciplina/listar`);
-        if (resD.ok) {
-            const dataD = await resD.json();
-            setDisciplinasOptions(dataD);
+        const [resDataQ, resDataD] = await Promise.all([
+            resQ.json(),
+            fetch(urlDisc).then(r => r.json())
+        ]);
+
+        setAllQuestions(resDataQ);
+
+        if (user.tipo === 'PROFESSOR') {
+            setDisciplinasOptions(resDataD.map((pd: any) => pd.disciplina));
+        } else {
+            setDisciplinasOptions(resDataD);
         }
 
       } catch (error) {
-        console.error("Erro ao buscar dados:", error);
-        alert("Erro ao carregar questões. Verifique se o backend está rodando.");
+        console.error("Erro ao carregar dados:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // --- 2. LÓGICA DE FILTRAGEM ---
+  // 2. Filtragem
   const visibleQuestions = allQuestions.filter(q => {
-    // Normaliza para minúsculas para busca insensível a caixa
-    const searchLower = searchText.toLowerCase();
-    
-    // Verifica se o texto digitado está no Enunciado, Disciplina ou Criador
-    const textMatch = 
-        (q.enunciado || '').toLowerCase().includes(searchLower) ||
-        (q.disciplina || '').toLowerCase().includes(searchLower) ||
-        (q.nomeCriador || '').toLowerCase().includes(searchLower);
-    
-    if (searchText && !textMatch) return false;
+    const term = searchText.toLowerCase().trim();
+    let matchesSearch = true;
 
-    // Filtros de Select
-    if (filterCriador !== 'Todos' && q.nomeCriador !== filterCriador) return false;
-    if (filterTipo !== 'Todos' && q.tipo !== filterTipo) return false;
-    if (filterDificuldade !== 'Todos' && q.dificuldade !== filterDificuldade) return false;
-    if (filterDisciplina !== 'Todos' && q.disciplina !== filterDisciplina) return false;
+    if (term) {
+        const inEnunciado = q.enunciado ? q.enunciado.toLowerCase().includes(term) : false;
+        const inDisciplina = q.disciplina ? q.disciplina.toLowerCase().includes(term) : false;
+        const inCriador = q.nomeCriador ? q.nomeCriador.toLowerCase().includes(term) : false;
+        matchesSearch = inEnunciado || inDisciplina || inCriador;
+    }
 
-    return true;
+    const matchesDisciplina = filterDisciplina === 'Todos' || q.disciplina === filterDisciplina;
+    const matchesDificuldade = filterDificuldade === 'Todos' || q.dificuldade === filterDificuldade;
+    const matchesTipo = filterTipo === 'Todos' || q.tipo === filterTipo;
+    const matchesCriador = filterCriador === 'Todos' || q.nomeCriador === filterCriador;
+
+    return matchesSearch && matchesDisciplina && matchesDificuldade && matchesTipo && matchesCriador;
   });
 
-  // Extrai listas únicas para os dropdowns
   const criadoresUnicos = Array.from(new Set(allQuestions.map(q => q.nomeCriador).filter(Boolean)));
-  const tiposUnicos = Array.from(new Set(allQuestions.map(q => q.tipo)));
-  const dificuldadesUnicas = Array.from(new Set(allQuestions.map(q => q.dificuldade)));
+  const tiposUnicos = Array.from(new Set(allQuestions.map(q => q.tipo).filter(Boolean)));
+  const dificuldadesUnicas = Array.from(new Set(allQuestions.map(q => q.dificuldade).filter(Boolean)));
 
-  // --- 3. AÇÕES ---
-  const toggleIncludeQuestion = (idStr: string) => {
+  // 3. Ações
+  const toggleQuestion = (idStr: string) => {
     const id = Number(idStr);
     const exists = selectedQuestions.find(s => s.id === id);
-    
     if (exists) {
       setSelectedQuestions(prev => prev.filter(p => p.id !== id));
     } else {
       const q = allQuestions.find(x => x.id === id);
-      if (q) {
-        setSelectedQuestions(prev => [q, ...prev]);
-      }
+      if (q) setSelectedQuestions(prev => [...prev, q!]);
     }
   };
 
@@ -123,50 +122,40 @@ export default function TestGeneratorPage() {
     setSelectedQuestions(prev => prev.filter(p => p.id !== id));
   };
 
-  // Função para o botão "Ver Questão" (Redireciona para a página de visualização/edição)
-  const handleViewQuestion = (id: string) => {
-     // Opção A: Abrir um alerta com detalhes rápidos
-     // const q = allQuestions.find(x => x.id === Number(id));
-     // alert(`Questão #${id}\n\n${q?.enunciado}\n\nResposta: ${q?.opcoes?.find(o=>o.correta)?.texto || 'N/A'}`);
-     
-     // Opção B: Navegar para a página de detalhes (Recomendado se você tiver a página pronta)
-     // Se não tiver a página '/browse/[id]', use a lógica de edição ou apenas um modal.
-     // Vou deixar configurado para abrir em uma nova aba a edição (admin) ou visualização
-     window.open(`/dashboard/questions/edit/${id}`, '_blank');
+  const handleViewQuestion = (idStr: string) => {
+    window.open(`/dashboard/questions/edit/${idStr}`, '_blank');
   };
 
-  const handleGenerateTest = (e: React.FormEvent) => {
+  const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Dados da Prova:", {
-        tituloProva,
-        universidade,
-        curso,
-        disciplinaNome,
-        professor,
-        turma,
-        questoes: selectedQuestions
-    });
-    alert(`Prova "${tituloProva}" gerada com ${selectedQuestions.length} questões!`);
+    alert(`Simulação: Prova "${tituloProva}" gerada com ${selectedQuestions.length} questões!`);
   };
 
   return (
-    // CORREÇÃO DE LAYOUT: h-[calc(100vh-6rem)] define altura fixa descontando navbar
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-6rem)] overflow-hidden">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-6rem)] overflow-hidden pb-2">
       
-      {/* Coluna Esquerda: Lista de Questões Disponíveis */}
-      <div className="flex flex-col h-full overflow-hidden">
+      {/* COLUNA ESQUERDA (LISTA) */}
+      <div className="lg:col-span-7 flex flex-col h-full overflow-hidden bg-white rounded-lg shadow-sm border border-gray-200">
         
-        {/* Área de Filtros Fixa */}
-        <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex-shrink-0">
-            <div className="flex gap-2 mb-3">
-                <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+        {/* Barra de Filtros */}
+        <div className="p-4 border-b border-gray-100 bg-gray-50">
+            <div className="flex gap-3 mb-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                     <input
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
-                        className="w-full pl-9 p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Pesquisar por enunciado..."
+                        className="w-full pl-10 p-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="Buscar por enunciado, disciplina..."
                     />
+                    {searchText && (
+                        <button 
+                            onClick={() => setSearchText('')} 
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
                 
                 <button
@@ -178,147 +167,156 @@ export default function TestGeneratorPage() {
                         setFilterDificuldade('Todos');
                         setFilterDisciplina('Todos');
                     }}
-                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm transition-colors"
+                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-sm transition-colors whitespace-nowrap font-medium text-gray-700"
                 >
-                    Limpar
+                    Limpar Filtros
                 </button>
             </div>
-
+            
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <select
+                <select 
                     value={filterDisciplina}
                     onChange={(e) => setFilterDisciplina(e.target.value)}
-                    className="p-2 border border-gray-200 rounded-md text-sm w-full"
+                    className="p-2 border border-gray-300 rounded-md text-sm bg-white"
                 >
-                    <option value="Todos">Disciplinas</option>
+                    <option value="Todos">Todas as Disciplinas</option>
                     {disciplinasOptions.map(d => <option key={d.id} value={d.nome}>{d.nome}</option>)}
                 </select>
-
-                <select
+                <select 
                     value={filterDificuldade}
                     onChange={(e) => setFilterDificuldade(e.target.value)}
-                    className="p-2 border border-gray-200 rounded-md text-sm w-full"
+                    className="p-2 border border-gray-300 rounded-md text-sm bg-white"
                 >
-                    <option value="Todos">Dificuldade</option>
+                    <option value="Todos">Todas Dificuldades</option>
                     {dificuldadesUnicas.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
-
-                <select
+                 <select 
                     value={filterTipo}
                     onChange={(e) => setFilterTipo(e.target.value)}
-                    className="p-2 border border-gray-200 rounded-md text-sm w-full"
+                    className="p-2 border border-gray-300 rounded-md text-sm bg-white"
                 >
-                    <option value="Todos">Tipo</option>
+                    <option value="Todos">Todos Tipos</option>
                     {tiposUnicos.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-
-                <select
+                 <select 
                     value={filterCriador}
                     onChange={(e) => setFilterCriador(e.target.value)}
-                    className="p-2 border border-gray-200 rounded-md text-sm w-full"
+                    className="p-2 border border-gray-300 rounded-md text-sm bg-white"
                 >
-                    <option value="Todos">Criador</option>
+                    <option value="Todos">Todos Criadores</option>
                     {criadoresUnicos.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
             </div>
         </div>
 
-        {/* Lista Scrollável (flex-1 permite ocupar o resto do espaço, overflow-y-auto habilita scroll interno) */}
-        <div className="flex-1 overflow-y-auto pr-2 space-y-4 pb-20">
-            {loading && <div className="text-center py-10 text-gray-500">Carregando questões...</div>}
+        {/* Área de Scroll das Questões */}
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4">
+            {loading && (
+                <div className="flex justify-center items-center py-10 text-gray-500">
+                    <Loader2 className="animate-spin mr-2" /> Carregando banco de questões...
+                </div>
+            )}
             
             {!loading && visibleQuestions.length === 0 && (
-                <div className="text-center py-10 text-gray-500">Nenhuma questão encontrada com os filtros atuais.</div>
+                <div className="text-center py-10 text-gray-500 bg-white rounded border border-dashed border-gray-300">
+                    <p>Nenhuma questão encontrada.</p>
+                    <p className="text-sm text-gray-400">Tente buscar por outro termo ou limpar os filtros.</p>
+                </div>
             )}
 
             {visibleQuestions.map(q => {
                 const isSelected = selectedQuestions.some(s => s.id === q.id);
                 return (
-                    <div key={q.id} className={`transition-all ${isSelected ? 'opacity-50 grayscale' : ''}`}>
+                    <div key={q.id} className={`transition-opacity duration-200 ${isSelected ? 'opacity-60' : 'opacity-100'}`}>
                         <QuestionForExame
                             id={q.id.toString()}
                             enunciado={q.enunciado}
                             disciplina={q.disciplina || 'Geral'}
-                            dificuldade={q.dificuldade}
+                            dificuldade={q.dificuldade as any}
                             tipo={q.tipo}
-                            criador={q.nomeCriador || 'Desconhecido'}
+                            criador={q.nomeCriador || 'Unknown'}
                             options={q.opcoes?.map(o => o.texto)}
-                            onInclude={toggleIncludeQuestion}
+                            onInclude={toggleQuestion}
+                            onView={handleViewQuestion}
                         />
-                        {/* Botão Ver Questão agora é funcional via Link interno no componente ou ajustado aqui se necessário. 
-                            O componente QuestionForExame já tem um Link para /browse/{id}, verifique se essa rota existe. 
-                            Se não existir, altere o componente QuestionForExame para usar um onClick customizado se preferir.
-                        */}
                     </div>
                 );
             })}
         </div>
       </div>
 
-      {/* Coluna Direita: Configuração da Prova */}
-      <div className="flex flex-col h-full bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200">
-        <div className="p-6 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-            <div className="flex items-center gap-2 mb-4">
-                <FileText className="text-blue-600" />
-                <h2 className="text-xl font-bold text-gray-800">Nova Prova</h2>
+      {/* COLUNA DIREITA (PROVA) */}
+      <div className="lg:col-span-5 flex flex-col h-full bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+        
+        {/* Cabeçalho da Prova */}
+        <div className="p-5 border-b border-gray-200 bg-white z-10">
+            <div className="flex items-center gap-2 mb-4 text-blue-700">
+                <FileText size={24} />
+                <h2 className="text-xl font-bold">Configurar Prova</h2>
             </div>
-            
-            <form onSubmit={handleGenerateTest} className="space-y-3">
+            <div className="space-y-3">
                 <input
                     value={tituloProva}
-                    onChange={e => setTituloProva(e.target.value)}
-                    placeholder="Título da Prova (ex: P1 de Cálculo)"
-                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                    required
+                    onChange={(e) => setTituloProva(e.target.value)}
+                    placeholder="Título da Prova (Ex: P1 - Algoritmos)"
+                    className="w-full p-2 border border-gray-300 rounded-md font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 <div className="grid grid-cols-2 gap-2">
-                    <input value={universidade} onChange={e => setUniversidade(e.target.value)} placeholder="Universidade" className="p-2 border rounded-md text-sm" />
-                    <input value={curso} onChange={e => setCurso(e.target.value)} placeholder="Curso" className="p-2 border rounded-md text-sm" />
-                    <input value={disciplinaNome} onChange={e => setDisciplinaNome(e.target.value)} placeholder="Disciplina" className="p-2 border rounded-md text-sm" />
-                    <input value={professor} onChange={e => setProfessor(e.target.value)} placeholder="Professor" className="p-2 border rounded-md text-sm" />
+                    <input 
+                        value={universidade} 
+                        onChange={(e) => setUniversidade(e.target.value)} 
+                        placeholder="Instituição" 
+                        className="flex-1 p-2 border border-gray-300 rounded-md text-sm" 
+                    />
+                    <input 
+                        value={professor} 
+                        onChange={(e) => setProfessor(e.target.value)} 
+                        placeholder="Professor" 
+                        className="flex-1 p-2 border border-gray-300 rounded-md text-sm" 
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                   <input value={curso} onChange={e => setCurso(e.target.value)} placeholder="Curso" className="p-2 border rounded-md text-sm" />
+                   <input value={disciplinaNome} onChange={e => setDisciplinaNome(e.target.value)} placeholder="Disciplina" className="p-2 border rounded-md text-sm" />
                 </div>
                 
                 <button 
-                    type="submit"
+                    onClick={handleGenerate}
                     disabled={selectedQuestions.length === 0}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-md font-bold shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Gerar PDF ({selectedQuestions.length} questões)
+                    Gerar PDF ({selectedQuestions.length})
                 </button>
-            </form>
+            </div>
         </div>
 
-        {/* Lista de Selecionadas Scrollável */}
+        {/* Lista de Selecionadas */}
         <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-            <div className="flex items-center gap-2 mb-3 text-gray-700 font-semibold sticky top-0 bg-gray-50 py-2 z-10">
-                <BookCheck size={20} />
-                Questões Selecionadas
+            <div className="flex items-center justify-between mb-3 text-gray-600">
+                <span className="flex items-center gap-2 font-semibold text-sm"><BookCheck size={18}/> Questões Selecionadas</span>
+                <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">{selectedQuestions.length}</span>
             </div>
 
             {selectedQuestions.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 rounded-lg p-8">
-                    <p>Sua prova está vazia.</p>
-                    <p className="text-sm">Selecione questões na lista ao lado.</p>
+                <div className="h-40 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 rounded-lg bg-white">
+                    <p className="text-sm">Sua prova está vazia.</p>
+                    <p className="text-xs mt-1">Adicione questões da lista ao lado.</p>
                 </div>
             ) : (
-                <div className="space-y-3 pb-4">
+                <div className="space-y-2">
                     {selectedQuestions.map((q, index) => (
-                        <div key={q.id} className="bg-white p-3 rounded-md shadow-sm border border-gray-200 flex gap-3 group items-start hover:shadow-md transition-shadow">
-                            <div className="font-bold text-blue-600 bg-blue-50 w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 text-xs mt-0.5">
-                                {index + 1}
-                            </div>
+                        <div key={q.id} className="group bg-white p-3 rounded border border-gray-200 hover:border-blue-300 transition-colors shadow-sm flex gap-3">
+                            <span className="font-bold text-blue-600 text-sm mt-0.5">#{index + 1}</span>
                             <div className="flex-1 min-w-0">
-                                <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
-                                    {q.disciplina} • {q.tipo}
-                                </div>
-                                <p className="text-sm text-gray-800 line-clamp-2 leading-snug">{q.enunciado}</p>
+                                <p className="text-xs font-bold text-gray-500 uppercase mb-0.5">{q.disciplina} • {q.dificuldade}</p>
+                                <p className="text-sm text-gray-800 line-clamp-2 leading-tight">{q.enunciado}</p>
                             </div>
                             <button 
                                 onClick={() => removeSelected(q.id)}
-                                className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors"
-                                title="Remover da prova"
+                                className="text-gray-300 hover:text-red-500 transition-colors"
+                                title="Remover"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                <Trash2 size={18} />
                             </button>
                         </div>
                     ))}

@@ -24,6 +24,11 @@ public class QuestaoService {
         return questoes.stream().map(this::converterParaDTO).collect(Collectors.toList());
     }
 
+    public List<QuestaoDTO> listarPorCriador(Integer criadorId) {
+        List<Questao> questoes = questaoRepository.findByCriadoPorId(criadorId);
+        return questoes.stream().map(this::converterParaDTO).collect(Collectors.toList());
+    }
+
     public QuestaoDTO buscarPorId(Integer id) {
         return questaoRepository.findById(id)
                 .map(this::converterParaDTO)

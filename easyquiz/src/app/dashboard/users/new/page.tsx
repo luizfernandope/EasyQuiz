@@ -1,18 +1,48 @@
 'use client';
 
-import { useState } from 'react';
-import { User, Mail, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Mail, Shield, BookOpen } from 'lucide-react';
 import { API_URL, getLoggedUser } from '@/services/api';
 
 type UserType = 'Professor' | 'Admin';
 
+type Disciplina = {
+  id: number;
+  nome: string;
+};
+
 export default function NewUserPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  // No backend o ENUM está como String uppercase: "PROFESSOR", "ADMIN"
   const [userType, setUserType] = useState<UserType>('Professor'); 
+  
+  // Estados para disciplinas
+  const [availableDisciplinas, setAvailableDisciplinas] = useState<Disciplina[]>([]);
+  const [selectedDisciplinas, setSelectedDisciplinas] = useState<number[]>([]);
+
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Carregar disciplinas ao iniciar
+  useEffect(() => {
+    fetch(`${API_URL}/disciplina/listar`)
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error("Falha ao carregar disciplinas");
+      })
+      .then(data => setAvailableDisciplinas(data))
+      .catch(err => console.error(err));
+  }, []);
+
+  const handleDisciplinaToggle = (id: number) => {
+    setSelectedDisciplinas(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(dId => dId !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,18 +56,18 @@ export default function NewUserPage() {
         return;
     }
 
-    // Mapeando para o que o Java espera (provavelmente "ADMIN" ou "PROFESSOR")
     const typeToSend = userType.toUpperCase(); 
 
+    // Payload correspondente ao DTO do backend
     const payload = {
         nome: name,
         email: email,
-        tipo: typeToSend
-        // senha é gerada pelo backend
+        tipo: typeToSend,
+        // Envia a lista de disciplinas apenas se for professor, senão lista vazia
+        disciplinaIds: typeToSend === 'PROFESSOR' ? selectedDisciplinas : []
     };
 
     try {
-        // Chama o endpoint: /usuarios/cadastrar/{adminId}
         const res = await fetch(`${API_URL}/usuarios/cadastrar/${currentUser.id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -46,14 +76,15 @@ export default function NewUserPage() {
 
         if (res.ok) {
             setMessage({ 
-                text: `Usuário cadastrado com sucesso! A senha foi enviada para o email (ou console do servidor).`, 
+                text: `Usuário cadastrado com sucesso! A senha foi enviada para o email.`, 
                 type: 'success' 
             });
             setName('');
             setEmail('');
+            setSelectedDisciplinas([]);
         } else {
-            // Tenta pegar mensagem de erro do backend ou status
-            setMessage({ text: 'Erro ao cadastrar. Verifique se você é admin ou se o email já existe.', type: 'error' });
+            const errorText = await res.text();
+            setMessage({ text: `Erro: ${errorText || 'Falha ao cadastrar.'}`, type: 'error' });
         }
     } catch (error) {
         console.error(error);
@@ -134,6 +165,29 @@ export default function NewUserPage() {
           </div>
         </div>
 
+        {/* Seleção de Disciplinas (Apenas para Professores) */}
+        {userType === 'Professor' && (
+          <div className="animate-fade-in">
+             <label className="block text-sm font-medium text-gray-700 mb-2">Disciplinas Lecionadas</label>
+             <div className="border rounded-md p-3 max-h-48 overflow-y-auto bg-gray-50 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {availableDisciplinas.length === 0 && <p className="text-gray-400 text-sm">Nenhuma disciplina cadastrada.</p>}
+                
+                {availableDisciplinas.map((d) => (
+                  <label key={d.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                    <input 
+                      type="checkbox" 
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                      checked={selectedDisciplinas.includes(d.id)}
+                      onChange={() => handleDisciplinaToggle(d.id)}
+                    />
+                    <span className="text-sm text-gray-700">{d.nome}</span>
+                  </label>
+                ))}
+             </div>
+             <p className="text-xs text-gray-500 mt-1">Selecione uma ou mais disciplinas que este professor poderá gerenciar.</p>
+          </div>
+        )}
+
         {/* Feedback e Botão de Salvar */}
         <div className="text-right pt-4">
           {message && (
@@ -148,7 +202,7 @@ export default function NewUserPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Cadastrando...' : 'Cadastrar Usuário'}
           </button>

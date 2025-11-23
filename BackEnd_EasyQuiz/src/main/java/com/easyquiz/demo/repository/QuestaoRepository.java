@@ -2,8 +2,14 @@ package com.easyquiz.demo.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.easyquiz.demo.model.Questao;
+import java.util.List;
 
 public interface QuestaoRepository extends JpaRepository<Questao, Integer> {
-    // Este método mágico cria a query "SELECT COUNT(*) FROM questao WHERE tipo = ?"
+    
     long countByTipo(String tipo);
+    
+    List<Questao> findByCriadoPorId(Integer criadoPorId);
+    
+    long countByCriadoPorId(Integer criadoPorId);
+    long countByCriadoPorIdAndTipo(Integer criadoPorId, String tipo);
 }

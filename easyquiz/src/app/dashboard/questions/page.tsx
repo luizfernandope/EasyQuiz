@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import QuestionListItem from "@/components/QuestionListItem";
-import { API_URL } from "@/services/api";
+import { API_URL, getLoggedUser } from "@/services/api";
 
 type QuestaoDTO = {
   id: number;
@@ -25,7 +25,16 @@ export default function MyQuestionsPage() {
   }, []);
 
   const carregarQuestoes = () => {
-    fetch(`${API_URL}/questao/browse`)
+    const user = getLoggedUser();
+    if (!user) return;
+
+    let endpoint = `${API_URL}/questao/browse`; 
+
+    if (user.tipo === 'PROFESSOR') {
+        endpoint = `${API_URL}/questao/porCriador/${user.id}`;
+    }
+
+    fetch(endpoint)
       .then(res => res.json())
       .then(data => setQuestions(data))
       .catch(err => console.error(err))
@@ -83,7 +92,7 @@ export default function MyQuestionsPage() {
 
         {!loading && questions.length === 0 && (
           <div className="bg-white p-6 shadow rounded-lg text-center text-gray-500">
-            <p>Nenhuma questão encontrada no banco de dados.</p>
+            <p>Nenhuma questão encontrada.</p>
           </div>
         )}
       </div>

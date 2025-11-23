@@ -23,7 +23,7 @@ export default function Sidebar() {
 
   if (!mounted) return null;
 
-  const menuItems = [
+const menuItems = [
     { name: 'Dashboard', href: '/dashboard', adminOnly: false },
     { name: 'Gerar Prova', href: '/dashboard/generator', adminOnly: false },
     { name: 'Minhas Questões', href: '/dashboard/questions', adminOnly: false },
@@ -33,6 +33,7 @@ export default function Sidebar() {
     // Itens restritos
     { name: 'Disciplinas', href: '/dashboard/disciplinas', adminOnly: true },
     { name: 'Cadastrar Novo Usuário', href: '/dashboard/users/new', adminOnly: true },
+    { name: 'Gerenciar Usuários', href: '/dashboard/users', adminOnly: true },
     { name: 'Registros', href: '/dashboard/logs', adminOnly: true }
   ];
 

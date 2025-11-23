@@ -1,6 +1,6 @@
 package com.easyquiz.demo.controller;
 
-import com.easyquiz.demo.dto.LoginRequest;
+import com.easyquiz.demo.dto.LoginRequestDTO;
 import com.easyquiz.demo.model.Usuario;
 import com.easyquiz.demo.repository.UsuarioRepository;
 import org.springframework.http.HttpStatus;
@@ -18,7 +18,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequestDTO loginRequest) {
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(loginRequest.getEmail());
         if (usuarioOpt.isPresent()) {
             Usuario usuario = usuarioOpt.get();
