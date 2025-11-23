@@ -5,7 +5,6 @@ import Link from "next/link";
 import QuestionListItem from "@/components/QuestionListItem";
 import { API_URL } from "@/services/api";
 
-// Tipo vindo da API (QuestaoDTO)
 type QuestaoDTO = {
   id: number;
   enunciado: string;
@@ -22,12 +21,36 @@ export default function MyQuestionsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/questao/browse`) // Usa o endpoint que retorna o DTO formatado
+    carregarQuestoes();
+  }, []);
+
+  const carregarQuestoes = () => {
+    fetch(`${API_URL}/questao/browse`)
       .then(res => res.json())
       .then(data => setQuestions(data))
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta questão?")) return;
+
+    try {
+      const res = await fetch(`${API_URL}/questao/delete/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setQuestions(prev => prev.filter(q => q.id.toString() !== id));
+        alert("Questão excluída com sucesso.");
+      } else {
+        alert("Erro ao excluir questão.");
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro de conexão.");
+    }
+  };
 
   return (
     <div>
@@ -52,9 +75,9 @@ export default function MyQuestionsPage() {
             tipo={q.tipo}
             dificuldade={q.dificuldade}
             disciplina={q.disciplina || 'Sem disciplina'}
-            // Mapeia as opções para string simples para o componente visual
             opcoes={q.opcoes?.map(o => o.texto)}
             resposta={q.respostaCorreta}
+            onDelete={handleDelete}
           />
         ))}
 

@@ -9,7 +9,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const router = useRouter(); 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +26,9 @@ export default function SignInPage() {
       if (response.ok) {
         const user = await response.json();
         localStorage.setItem('easyquiz_user', JSON.stringify(user));
-        router.push('/'); // Redireciona para Home para atualizar a Navbar
+        
+        window.location.href = '/'; 
+        
       } else {
         setError('Email ou senha inválidos.');
       }
@@ -53,7 +55,7 @@ export default function SignInPage() {
             type="email"
             id="email"
             name="email"
-            placeholder="voce@email.com" // Placeholder restaurado (Máscara visual)
+            placeholder="voce@email.com"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -69,7 +71,7 @@ export default function SignInPage() {
             type="password"
             id="password"
             name="password"
-            placeholder="Sua senha" // Placeholder restaurado
+            placeholder="Sua senha"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -81,7 +83,6 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={loading}
-            // Cor restaurada para bg-blue-500 conforme arquivo original
             className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out disabled:opacity-50"
           >
             {loading ? 'Entrando...' : 'Entrar'}

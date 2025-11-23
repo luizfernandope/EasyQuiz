@@ -1,198 +1,178 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { API_URL, getLoggedUser } from '@/services/api';
 
-// --- Type Definitions ---
 type TipoPergunta = 'Multipla Escolha' | 'Dissertativa' | 'Verdadeiro/Falso';
-type NivelDificuldade = 'Fácil' | 'Médio' | 'Difícil';
 
-type QuestionData = {
-  id: string;
-  enunciado: string;
-  tipo: TipoPergunta;
-  dificuldade: NivelDificuldade;
-  disciplina: string;
-  opcoes?: string[];
-  respostaCorreta?: number | string | null;
-};
+type OpcaoState = {
+  texto: string;
+  correta: boolean;
+}
 
-// --- Mock Data Fetching Function ---
-// In a real app, this would be an API call.
-const fetchQuestionById = async (id: string): Promise<QuestionData | null> => {
-  console.log(`Fetching data for question #${id}...`);
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
+type Disciplina = {
+  id: number;
+  nome: string;
+}
 
-  // Mock data - replace with your actual data source
-  const mockDatabase: { [key: string]: QuestionData } = {
-    '101': {
-      id: '101',
-      enunciado: 'Qual é a capital do Brasil?',
-      tipo: 'Multipla Escolha',
-      dificuldade: 'Fácil',
-      disciplina: 'Geografia',
-      opcoes: ['Brasília', 'Rio de Janeiro', 'São Paulo', 'Salvador'],
-      respostaCorreta: 0, // index of 'Brasília'
-    },
-    '102': {
-      id: '102',
-      enunciado: 'Descreva o processo de normalização de um banco de dados.',
-      tipo: 'Dissertativa',
-      dificuldade: 'Médio',
-      disciplina: 'Banco de Dados',
-      // No 'opcoes' or 'respostaCorreta' for Dissertativa
-    },
-    '103': {
-      id: '103',
-      enunciado: 'O Sol gira em torno da Terra.',
-      tipo: 'Verdadeiro/Falso',
-      dificuldade: 'Fácil',
-      disciplina: 'Astronomia',
-      respostaCorreta: 'Falso',
-    },
-  };
+export default function EditQuestionPage() {
+  const router = useRouter();
+  const params = useParams(); 
+  const questionId = params.questionId;
 
-  return mockDatabase[id] || null;
-};
+  const [tipoPergunta, setTipoPergunta] = useState<TipoPergunta>('Multipla Escolha');
+  const [enunciado, setEnunciado] = useState('');
+  const [dificuldade, setDificuldade] = useState('Fácil');
+  const [disciplinaId, setDisciplinaId] = useState<number | ''>('');
+  
+  const [opcoes, setOpcoes] = useState<OpcaoState[]>([
+    { texto: '', correta: false }, { texto: '', correta: false },
+    { texto: '', correta: false }, { texto: '', correta: false }
+  ]);
 
-// --- Page Component ---
-export default function EditQuestionPage({ params }: { params: { questionId: string } }) {
-  const { questionId } = params;
-
-  const [formData, setFormData] = useState<Partial<QuestionData>>({});
-  const [originalData, setOriginalData] = useState<Partial<QuestionData>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [listaDisciplinas, setListaDisciplinas] = useState<Disciplina[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const loadQuestionData = async () => {
-      setIsLoading(true);
-      setError(null);
+    const fetchData = async () => {
       try {
-        const data = await fetchQuestionById(questionId);
-        if (data) {
-          // Ensure 'opcoes' is an array of 4 for multiple choice
-          if (data.tipo === 'Multipla Escolha' && (!data.opcoes || data.opcoes.length < 4)) {
-            const existingOpcoes = data.opcoes || [];
-            data.opcoes = [...existingOpcoes, ...Array(4 - existingOpcoes.length).fill('')];
+        const resDisc = await fetch(`${API_URL}/disciplina/listar`);
+        const disciplinasData = await resDisc.json();
+        setListaDisciplinas(disciplinasData);
+
+        if (questionId) {
+          const resQuestao = await fetch(`${API_URL}/questao/${questionId}`);
+          if (!resQuestao.ok) throw new Error('Questão não encontrada');
+          
+          const qData = await resQuestao.json();
+          
+          setEnunciado(qData.enunciado);
+          setTipoPergunta(qData.tipo);
+          setDificuldade(qData.dificuldade);
+          setDisciplinaId(qData.disciplinaId || (disciplinasData.length > 0 ? disciplinasData[0].id : ''));
+
+          if (qData.opcoes && qData.opcoes.length > 0) {
+            const mappedOpcoes = qData.opcoes.map((o: any) => ({
+                texto: o.texto,
+                correta: o.correta
+            }));
+            
+            if (qData.tipo === 'Multipla Escolha') {
+               while(mappedOpcoes.length < 4) mappedOpcoes.push({ texto: '', correta: false });
+            }
+            setOpcoes(mappedOpcoes);
+          } else if (qData.tipo === 'Multipla Escolha') {
+             setOpcoes(Array(4).fill({ texto: '', correta: false }));
           }
-          setFormData(data);
-          setOriginalData(data);
-        } else {
-          setError(`Questão com ID "${questionId}" não encontrada.`);
         }
-      } catch (err) {
-        setError('Falha ao carregar os dados da questão.');
-        console.error(err);
+      } catch (error) {
+        console.error(error);
+        alert('Erro ao carregar dados.');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    loadQuestionData();
+    fetchData();
   }, [questionId]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleOptionTextChange = (index: number, text: string) => {
+    const novas = opcoes.map((op, i) => i === index ? { ...op, texto: text } : op);
+    setOpcoes(novas);
   };
 
-  const handleOpcaoChange = (index: number, value: string) => {
-    const novasOpcoes = [...(formData.opcoes || [])];
-    novasOpcoes[index] = value;
-    setFormData((prev) => ({ ...prev, opcoes: novasOpcoes }));
+  const handleOptionCorrectChange = (index: number) => {
+    const novas = opcoes.map((op, i) => ({ ...op, correta: i === index }));
+    setOpcoes(novas);
   };
 
-  const handleRadioChange = (name: keyof QuestionData, value: any) => {
-    setFormData((prev) => {
-      const newState = { ...prev, [name]: value };
-
-      // Se o tipo for alterado para Múltipla Escolha, garanta que o array de opções exista.
-      if (name === 'tipo' && value === 'Multipla Escolha') {
-        // Se não houver opções ou se houver menos de 4, crie um novo array.
-        if (!newState.opcoes || newState.opcoes.length < 4) {
-          const existingOpcoes = newState.opcoes || [];
-          newState.opcoes = [...existingOpcoes, ...Array(4 - existingOpcoes.length).fill('')];
-        }
-        // Limpa a resposta correta anterior para evitar inconsistências
-        newState.respostaCorreta = null;
-      }
-
-      return newState;
-    });
+  const handleVFChange = (valorCorreto: 'Verdadeiro' | 'Falso') => {
+    setOpcoes([
+      { texto: 'Verdadeiro', correta: valorCorreto === 'Verdadeiro' },
+      { texto: 'Falso', correta: valorCorreto === 'Falso' }
+    ]);
   };
 
-  const handleRevert = () => {
-    setFormData(originalData);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Clean up data before submitting
-    const submissionData = {
-      ...formData,
-      opcoes: formData.tipo === 'Multipla Escolha' ? formData.opcoes : undefined,
-      respostaCorreta: formData.tipo !== 'Dissertativa' ? formData.respostaCorreta : null,
+    setSaving(true);
+
+    const user = getLoggedUser();
+    if (!user) return;
+
+    const payload = {
+      id: Number(questionId),
+      enunciado,
+      dificuldade,
+      tipo: tipoPergunta,
+      disciplinaId: Number(disciplinaId),
+      criadorId: user.id,
+      opcoes: tipoPergunta === 'Dissertativa' ? [] : opcoes
     };
-    console.log('Salvando alterações:', submissionData);
-    // Here you would make an API call to save the data
-    alert('Alterações salvas com sucesso! (Verifique o console)');
+
+    try {
+      const response = await fetch(`${API_URL}/questao/update/${questionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        alert('Questão atualizada com sucesso!');
+        router.push('/dashboard/questions'); 
+      } else {
+        const errorText = await response.text();
+        alert('Erro ao atualizar: ' + errorText);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Erro de conexão.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (isLoading) return <p>Carregando...</p>;
-  if (error) return <p className="text-red-500">{error}</p>;
+  if (loading) return <div className="p-8 text-center">Carregando...</div>;
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6">Editando Questão: #{questionId}</h1>
-
+      <h1 className="text-3xl font-bold mb-6">Editar Questão #{questionId}</h1>
+      
       <form onSubmit={handleSubmit} className="bg-white p-6 shadow rounded-lg space-y-6">
-        {/* Enunciado */}
+        
         <div>
-          <label htmlFor="enunciado" className="block text-sm font-medium text-gray-700">
-            Enunciado da Questão
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Enunciado</label>
           <textarea
-            id="enunciado"
-            name="enunciado"
             rows={4}
-            value={formData.enunciado || ''}
-            onChange={handleInputChange}
             className="w-full mt-1 p-2 border rounded-md"
+            value={enunciado}
+            onChange={e => setEnunciado(e.target.value)}
+            required
           />
         </div>
 
-        {/* Disciplina e Dificuldade */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="disciplina" className="block text-sm font-medium text-gray-700">
-              Disciplina
-            </label>
-            <select
-              id="disciplina"
-              name="disciplina"
-              value={formData.disciplina || ''}
-              onChange={handleInputChange}
-              className="w-full mt-1 p-2 border rounded-md"
+            <label className="block text-sm font-medium text-gray-700">Disciplina</label>
+            <select 
+                className="w-full mt-1 p-2 border rounded-md"
+                value={disciplinaId}
+                onChange={e => setDisciplinaId(Number(e.target.value))}
             >
-              <option>Redes de Computadores</option>
-              <option>Cálculo 1</option>
-              <option>Engenharia de Software</option>
-              <option>Banco de Dados</option>
+                {listaDisciplinas.map(d => (
+                    <option key={d.id} value={d.id}>{d.nome}</option>
+                ))}
             </select>
           </div>
+
           <div>
-            <label htmlFor="dificuldade" className="block text-sm font-medium text-gray-700">
-              Nível de Dificuldade
-            </label>
-            <select
-              id="dificuldade"
-              name="dificuldade"
-              value={formData.dificuldade || 'Fácil'}
-              onChange={handleInputChange}
-              className="w-full mt-1 p-2 border rounded-md"
+            <label className="block text-sm font-medium text-gray-700">Dificuldade</label>
+            <select 
+                className="w-full mt-1 p-2 border rounded-md"
+                value={dificuldade}
+                onChange={e => setDificuldade(e.target.value)}
             >
               <option value="Fácil">Fácil</option>
               <option value="Médio">Médio</option>
@@ -201,97 +181,81 @@ export default function EditQuestionPage({ params }: { params: { questionId: str
           </div>
         </div>
 
-        {/* Tipo de Pergunta */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Tipo de Pergunta</label>
-          <div className="flex space-x-4 mt-2">
-            {(['Multipla Escolha', 'Dissertativa', 'Verdadeiro/Falso'] as TipoPergunta[]).map((t) => (
-              <label key={t} className="flex items-center">
-                <input
-                  type="radio"
-                  name="tipo"
-                  value={t}
-                  checked={formData.tipo === t}
-                  onChange={() => handleRadioChange('tipo', t)}
-                />
-                <span className="ml-2">{t}</span>
-              </label>
-            ))}
+          <div className="flex space-x-4 mt-2 p-2 bg-gray-100 rounded text-gray-500 cursor-not-allowed">
+             <span>{tipoPergunta} (Não editável)</span>
           </div>
+          <p className="text-xs text-gray-400 mt-1">* Para mudar o tipo, crie uma nova questão.</p>
         </div>
 
-        {/* Opções de Resposta (Condicional) */}
         <div className="border-t pt-4">
-          {formData.tipo === 'Multipla Escolha' && (
-            <div className="bg-gray-50 p-4 rounded-md border space-y-2">
-              <h3 className="text-sm font-semibold">Opções de Resposta</h3>
-              {(formData.opcoes || []).map((opcao, index) => (
-                <label key={index} className="flex items-center space-x-3">
-                  <input
-                    type="radio"
-                    name="respostaCorreta"
-                    checked={formData.respostaCorreta === index}
-                    onChange={() => handleRadioChange('respostaCorreta', index)}
-                  />
-                  <input
-                    type="text"
-                    value={opcao}
-                    onChange={(e) => handleOpcaoChange(index, e.target.value)}
-                    className="flex-1 p-2 border rounded-md"
-                    placeholder={`Opção ${index + 1}`}
-                  />
-                </label>
-              ))}
+          {tipoPergunta === 'Multipla Escolha' && (
+            <div className="bg-gray-50 p-4 rounded-md border space-y-3">
+                {opcoes.map((op, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      className="flex-1 p-2 border rounded-md"
+                      value={op.texto}
+                      onChange={(e) => handleOptionTextChange(i, e.target.value)}
+                      required
+                    />
+                    <input
+                      type="radio"
+                      name="opcao_correta_edit"
+                      className="w-5 h-5"
+                      checked={op.correta}
+                      onChange={() => handleOptionCorrectChange(i)}
+                    />
+                  </div>
+                ))}
             </div>
           )}
-          {formData.tipo === 'Verdadeiro/Falso' && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Resposta Correta</label>
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="respostaCorreta"
-                    value="Verdadeiro"
-                    checked={formData.respostaCorreta === 'Verdadeiro'}
-                    onChange={() => handleRadioChange('respostaCorreta', 'Verdadeiro')}
-                  />
-                  <span className="ml-2">Verdadeiro</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="respostaCorreta"
-                    value="Falso"
-                    checked={formData.respostaCorreta === 'Falso'}
-                    onChange={() => handleRadioChange('respostaCorreta', 'Falso')}
-                  />
-                  <span className="ml-2">Falso</span>
-                </label>
-              </div>
+
+          {tipoPergunta === 'Verdadeiro/Falso' && (
+            <div className="bg-gray-50 p-4 rounded-md border space-y-3">
+               <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="vf_group_edit"
+                      checked={opcoes.find(o => o.texto === 'Verdadeiro')?.correta}
+                      onChange={() => handleVFChange('Verdadeiro')}
+                    /> 
+                    Verdadeiro
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="vf_group_edit"
+                      checked={opcoes.find(o => o.texto === 'Falso')?.correta}
+                      onChange={() => handleVFChange('Falso')}
+                    /> 
+                    Falso
+                  </label>
+               </div>
             </div>
-          )}
-          {formData.tipo === 'Dissertativa' && (
-            <p className="text-gray-500 text-sm">Questões dissertativas não exigem opções de resposta.</p>
           )}
         </div>
 
-        {/* Botões de Ação */}
-        <div className="flex justify-end gap-4">
+        <div className="text-right gap-2 flex justify-end">
           <button
             type="button"
-            onClick={handleRevert}
+            onClick={() => router.back()}
             className="bg-gray-200 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-300"
           >
-            Reverter Alterações
+            Cancelar
           </button>
           <button
             type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+            disabled={saving}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            Salvar Alterações
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </div>
+
       </form>
     </div>
   );

@@ -1,33 +1,11 @@
+'use client';
+
 import Link from 'next/link';
-// Vamos usar ícones para os atalhos e estatísticas
-import { Plus, FileText, CheckSquare, BarChart2, User, BookOpen, UserRoundPlus, History } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, FileText, CheckSquare, BarChart2, User, BookOpen, UserRoundPlus, History, Loader2 } from 'lucide-react';
+import { API_URL } from '@/services/api';
 
-// Dados Falsos (Mock Data) para as estatísticas
-const stats = [
-  {
-    nome: 'Questões Geradas',
-    valor: '42', // Viria do DB
-    icone: <CheckSquare size={24} className="text-blue-600" />,
-  },
-  {
-    nome: 'Múltipla Escolha',
-    valor: '8', // Viria do DB
-    icone: <FileText size={24} className="text-green-600" />,
-  },
-  {
-    nome: 'Verdadeiro ou Falso',
-    valor: '312', // Viria do DB
-    icone: <BarChart2 size={24} className="text-yellow-600" />,
-  },
-  {
-    nome: 'Dissertativa',
-    valor: '312', // Viria do DB
-    icone: <BarChart2 size={24} className="text-yellow-600" />,
-  },
-
-];
-
-// Atalhos para as principais ações
+// Atalhos para as principais ações (Estático)
 const atalhos = [
   {
     nome: 'Criar Nova Questão',
@@ -68,26 +46,77 @@ const atalhos = [
 ];
 
 export default function DashboardPage() {
+  // Estado para armazenar os números vindos da API
+  const [counts, setCounts] = useState({
+    total: 0,
+    multipla: 0,
+    vf: 0,
+    dissertativa: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Busca os dados reais do backend
+    fetch(`${API_URL}/questao/stats`)
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Erro ao buscar estatísticas');
+      })
+      .then(data => {
+        setCounts(data);
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Array de estatísticas dinâmico
+  const statsCards = [
+    {
+      nome: 'Questões Geradas',
+      valor: counts.total,
+      icone: <CheckSquare size={24} className="text-blue-600" />,
+    },
+    {
+      nome: 'Múltipla Escolha',
+      valor: counts.multipla,
+      icone: <FileText size={24} className="text-green-600" />,
+    },
+    {
+      nome: 'Verdadeiro ou Falso',
+      valor: counts.vf,
+      icone: <BarChart2 size={24} className="text-yellow-600" />,
+    },
+    {
+      nome: 'Dissertativa',
+      valor: counts.dissertativa,
+      icone: <BarChart2 size={24} className="text-purple-600" />,
+    },
+  ];
+
   return (
     <div>
-      {/* 1. Cabeçalho de Boas-Vindas */}
-      <h1 className="text-3xl font-bold mb-2">Painel - Admin</h1>
+      {/* 1. Cabeçalho */}
+      <h1 className="text-3xl font-bold mb-2">Painel - Visão Geral</h1>
       <p className="text-lg text-gray-600 mb-8">
         Aqui você gerencia suas questões e perfil de forma rápida.
       </p>
 
-      {/* 2. Cards de Estatísticas */}
+      {/* 2. Cards de Estatísticas (Dinâmicos) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat) => (
+        {statsCards.map((stat) => (
           <div 
             key={stat.nome} 
-            className="bg-white p-6 shadow-lg rounded-lg border border-gray-200 flex items-center"
+            className="bg-white p-6 shadow-lg rounded-lg border border-gray-200 flex items-center transition-transform hover:scale-105"
           >
             <div className="mr-4 p-3 bg-gray-100 rounded-full">
               {stat.icone}
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-800">{stat.valor}</p>
+              {loading ? (
+                <Loader2 className="animate-spin text-gray-400" size={24} />
+              ) : (
+                <p className="text-3xl font-bold text-gray-800">{stat.valor}</p>
+              )}
               <p className="text-sm font-semibold text-gray-500">{stat.nome}</p>
             </div>
           </div>
@@ -102,13 +131,17 @@ export default function DashboardPage() {
             <Link 
               key={atalho.nome}
               href={atalho.href}
-              className="bg-white p-6 shadow-lg rounded-lg border border-gray-200 hover:shadow-xl hover:border-blue-500 transition-all"
+              className="bg-white p-6 shadow-lg rounded-lg border border-gray-200 hover:shadow-xl hover:border-blue-500 transition-all flex items-start"
             >
-              <div className="flex items-center text-xl font-semibold text-blue-600 mb-2">
+              <div className="flex-shrink-0 mt-1 p-2 bg-blue-50 rounded-md text-blue-600 mr-4">
                 {atalho.icone}
-                {atalho.nome}
               </div>
-              <p className="text-gray-600">{atalho.descricao}</p>
+              <div>
+                <div className="text-xl font-semibold text-gray-800 mb-1">
+                  {atalho.nome}
+                </div>
+                <p className="text-gray-600 text-sm">{atalho.descricao}</p>
+              </div>
             </Link>
           ))}
         </div>
