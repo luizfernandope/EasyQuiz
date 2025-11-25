@@ -2,7 +2,6 @@ package com.easyquiz.demo.controller;
 
 import com.easyquiz.demo.model.LogCadastro;
 import com.easyquiz.demo.repository.LogCadastroRepository;
-// Removemos a importação não usada do UsuarioRepository
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -15,11 +14,9 @@ import org.springframework.web.bind.annotation.*;
 public class LogCadastroController {
 
     private final LogCadastroRepository repository;
-    // Removemos o usuarioRepository daqui pois não estava sendo usado
 
     public LogCadastroController(LogCadastroRepository repository) {
         this.repository = repository;
-        // Removemos a atribuição do usuarioRepository
     }
 
     @GetMapping("/listar")

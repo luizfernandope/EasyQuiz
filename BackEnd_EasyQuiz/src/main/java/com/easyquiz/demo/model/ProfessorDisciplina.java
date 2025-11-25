@@ -21,10 +21,9 @@ import org.hibernate.annotations.OnDeleteAction;
 @Table(name = "professor_disciplina")
 public class ProfessorDisciplina {
 
-    @EmbeddedId // embeddedId é usado para chaves compostas
+    @EmbeddedId 
     private ProfessorDisciplinaId id;
 
-    // Relacionamento com Usuario (professor)
     @MapsId("professorId")
     @ManyToOne(optional = false)
     @JoinColumn(name = "professor_id", referencedColumnName = "id",
@@ -32,7 +31,6 @@ public class ProfessorDisciplina {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Usuario professor;
 
-    // Relacionamento com Disciplina
     @MapsId("disciplinaId")
     @ManyToOne(optional = false)
     @JoinColumn(name = "disciplina_id", referencedColumnName = "id",
@@ -40,6 +38,4 @@ public class ProfessorDisciplina {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Disciplina disciplina;
 
-    // Observação: a tabela resultante terá a chave primária composta (professor_id, disciplina_id)
-    // e, quando Hibernate schema generation for usado, @OnDelete adiciona ON DELETE CASCADE.
 }

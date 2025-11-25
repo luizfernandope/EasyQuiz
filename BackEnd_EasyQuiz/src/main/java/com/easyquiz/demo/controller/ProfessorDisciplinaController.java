@@ -31,7 +31,6 @@ public class ProfessorDisciplinaController {
     //listar por id professorId
     @GetMapping("/listarPorIDProfessor/{professorId}")
     public ResponseEntity<List<ProfessorDisciplina>> listarPorIDProfessor(@PathVariable Integer professorId) {
-        //não existe o método findByIdProfessorId no repository, entao a lógica foi implementada aqui
         List<ProfessorDisciplina> todas = repository.findAll();
         List<ProfessorDisciplina> resultado = new ArrayList<>();
         for (ProfessorDisciplina pd : todas) {
@@ -51,9 +50,7 @@ public class ProfessorDisciplinaController {
         disciplina.setId(profDisciId.getDisciplinaId());
         professorDisciplina.setProfessor(professor);
         professorDisciplina.setDisciplina(disciplina);
-        //definindo o id incorporado antes de salvar para que o Hibernate possa mapear a chave composta
         ProfessorDisciplinaId idComposto = new ProfessorDisciplinaId(profDisciId.getProfessorId(), profDisciId.getDisciplinaId());
-        // evitando entradas duplicadas
         if (repository.existsById(idComposto)) {
             System.out.println("ProfessorDisciplina já cadastrado com id: " + idComposto);
             return ResponseEntity.status(HttpStatus.CONFLICT).build();

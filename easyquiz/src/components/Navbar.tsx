@@ -31,21 +31,6 @@ export default function Navbar() {
             EasyQuiz
           </Link>
         </div>
-
-        {/* Centro: Barra de Busca */}
-        <div className="flex-1 flex justify-center px-8">
-          {user ? (
-            <Link 
-              href="/browse"
-              className="flex items-center w-full max-w-md p-2 bg-gray-100 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-200 hover:border-gray-300 transition-colors"
-            >
-              <Search size={18} className="mr-2 text-gray-400" />
-              Buscar por questões...
-            </Link>
-          ) : (
-            <div className="w-full max-w-md"></div>
-          )}
-        </div>
         
         {/* Lado Direito: Botões */}
         <div className="flex-shrink-0 flex items-center space-x-2">

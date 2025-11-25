@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { CheckCircle } from 'lucide-react';
-import { getLoggedUser } from '@/services/api'; // Importe a função auxiliar
+import { getLoggedUser } from '@/services/api';
 
 export default function HomePage() {
   const router = useRouter();
@@ -12,10 +12,8 @@ export default function HomePage() {
     const user = getLoggedUser();
     
     if (user) {
-      // Se estiver logado, vai para a página solicitada
       router.push(path);
     } else {
-      // Se não, força o login
       router.push('/auth/sign-in');
     }
   };
@@ -39,14 +37,6 @@ export default function HomePage() {
               className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors cursor-pointer"
             >
               Gerar Prova Rápida
-            </button>
-
-            {/* Botão 2: Explorar Questões */}
-            <button 
-              onClick={() => handleNavigation('/browse')}
-              className="bg-gray-100 text-gray-800 px-6 py-3 rounded-lg font-semibold text-lg hover:bg-gray-200 transition-colors cursor-pointer"
-            >
-              Explorar Questões
             </button>
           </div>
         </div>

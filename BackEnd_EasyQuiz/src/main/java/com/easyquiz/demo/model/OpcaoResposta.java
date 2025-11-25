@@ -24,10 +24,9 @@ public class OpcaoResposta {
     @Column(name = "correta")
     private Boolean correta;
 
-    // Relacionamento reverso
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "questao_id", nullable = false)
-    @JsonIgnore // Evita loop infinito no JSON padrão
+    @JsonIgnore 
     @ToString.Exclude
     private Questao questao;
 }

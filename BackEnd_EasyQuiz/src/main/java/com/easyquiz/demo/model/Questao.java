@@ -26,7 +26,7 @@ public class Questao {
     private String titulo;
 
     @Column(name = "descricao", nullable = false, columnDefinition = "TEXT")
-    private String descricao; // Isso atua como o "Enunciado"
+    private String descricao; 
 
     @Column(name = "dificuldade", nullable = false)
     private String dificuldade;
