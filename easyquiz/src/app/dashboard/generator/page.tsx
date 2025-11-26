@@ -189,6 +189,10 @@ export default function TestGeneratorPage() {
             { type: 'line', x1: 0, y1: 15, x2: 230, y2: 15, lineWidth: 0.5 },
             { type: 'line', x1: 0, y1: 35, x2: 230, y2: 35, lineWidth: 0.5 },
             { type: 'line', x1: 0, y1: 55, x2: 230, y2: 55, lineWidth: 0.5 },
+            { type: 'line', x1: 0, y1: 55, x2: 230, y2: 55, lineWidth: 0.5 },
+            { type: 'line', x1: 0, y1: 55, x2: 230, y2: 55, lineWidth: 0.5 },
+
+
           ],
           margin: [0, 0, 0, 5]
         });
