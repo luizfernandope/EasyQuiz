@@ -1,5 +1,11 @@
 import Link from 'next/link';
 import { BookOpen, Layers } from 'lucide-react';
+import { useState } from 'react';
+
+type Opcao = {
+  texto: string;
+  correta: boolean;
+};
 
 type Props = {
   id: string;
@@ -8,10 +14,9 @@ type Props = {
   dificuldade: 'Fácil' | 'Médio' | 'Difícil';
   tipo: string;
   criador: string;
-  options?: string[];
+  opcoes?: Opcao[];
   onInclude?: (id: string) => void;
-  // Adicionado suporte para função de visualizar
-  onView?: (id: string) => void;
+  isIncluded?: boolean;
 };
 
 export default function QuestionForExame({
@@ -21,10 +26,12 @@ export default function QuestionForExame({
   dificuldade,
   tipo,
   criador,
-  options = [],
+  opcoes = [],
   onInclude,
-  onView,
+  isIncluded = false,
 }: Props) {
+  const [showAnswer, setShowAnswer] = useState(false);
+
   const dificuldadeColors = {
     'Fácil': 'bg-green-100 text-green-800',
     'Médio': 'bg-yellow-100 text-yellow-800',
@@ -32,18 +39,25 @@ export default function QuestionForExame({
   };
 
   const tipoNormalized = tipo?.toLowerCase() ?? '';
+  const isDissertativa = tipoNormalized.includes('dissertativa');
 
   const renderOptions = () => {
     if (tipoNormalized.includes('multip') || tipoNormalized.includes('múltip')) {
-      const letters = ['a)', 'b)', 'c)', 'd)'];
+      const letters = ['a)', 'b)', 'c)', 'd)', 'e)'];
       return (
         <ul className="flex flex-col gap-2">
-          {letters.map((label, idx) => {
-            const text = options[idx] ?? `Opção ${label}`;
+          {opcoes.map((opcao, idx) => {
+            const label = letters[idx] || `${idx + 1})`;
+            const isCorrect = showAnswer && opcao.correta;
+            
+            const styleClass = `text-sm text-gray-800 border px-3 py-2 rounded-md w-full transition-colors ${
+              isCorrect ? 'bg-green-200 border-green-400' : 'bg-gray-50 border-gray-100'
+            }`;
+
             return (
-              <li key={idx} className="text-sm text-gray-800 bg-gray-50 border border-gray-100 px-3 py-2 rounded-md w-full">
+              <li key={idx} className={styleClass}>
                 <span className="font-medium mr-2">{label}</span>
-                <span>{text}</span>
+                <span>{opcao.texto}</span>
               </li>
             );
           })}
@@ -52,6 +66,23 @@ export default function QuestionForExame({
     }
 
     if (tipoNormalized.includes('verdadeiro') || tipoNormalized.includes('falso')) {
+      if (opcoes.length > 0) {
+        return (
+          <ul className="flex flex-col gap-2">
+            {opcoes.map((opcao, idx) => {
+              const isCorrect = showAnswer && opcao.correta;
+              const styleClass = `text-sm text-gray-800 border px-3 py-2 rounded-md w-full transition-colors ${
+                isCorrect ? 'bg-green-200 border-green-400' : 'bg-gray-50 border-gray-100'
+              }`;
+              return (
+                <li key={idx} className={styleClass}>
+                  <span>{opcao.texto}</span>
+                </li>
+              );
+            })}
+          </ul>
+        );
+      }
       return (
         <ul className="flex flex-col gap-2">
           <li className="text-sm text-gray-800 bg-gray-50 border border-gray-100 px-3 py-2 rounded-md w-full">Verdadeiro</li>
@@ -64,7 +95,7 @@ export default function QuestionForExame({
   };
 
   return (
-    <div className="bg-white p-5 shadow-lg rounded-lg border border-gray-200 flex flex-col">
+    <div className={`bg-white p-5 shadow-lg rounded-lg border ${isIncluded ? 'border-blue-300 ring-1 ring-blue-300' : 'border-gray-200'} flex flex-col transition-all`}>
       {/* Cabeçalho */}
       <div className="flex justify-between items-center mb-2">
         <span className="flex items-center text-sm font-semibold text-blue-600">
@@ -109,21 +140,29 @@ export default function QuestionForExame({
 
       {/* Rodapé */}
       <div className="flex gap-2">
-        {/* Botão Ver Questão: Agora usa um button com as mesmas classes do Link original para manter design */}
         <button
           type="button"
-          onClick={() => onView && onView(id)}
-          className="flex-1 text-center bg-blue-500 text-white font-semibold py-2 rounded-md hover:bg-blue-600 transition-colors"
+          disabled={isDissertativa}
+          onClick={() => setShowAnswer(!showAnswer)}
+          className={`flex-1 text-center font-semibold py-2 rounded-md transition-colors text-white 
+            ${isDissertativa 
+                ? 'bg-blue-500 opacity-50 cursor-not-allowed' // Botão meio apagado e desabilitado
+                : 'bg-blue-500 hover:bg-blue-600'
+            }`}
         >
-          Ver Questão
+          {showAnswer ? 'Ocultar Resposta' : 'Ver Resposta'}
         </button>
 
         <button
           type="button"
           onClick={() => onInclude && onInclude(id)}
-          className="flex-1 bg-green-600 text-white font-semibold py-2 rounded-md hover:bg-green-700 transition-colors"
+          className={`flex-1 font-semibold py-2 rounded-md transition-colors text-white ${
+            isIncluded 
+              ? 'bg-red-600 hover:bg-red-700' 
+              : 'bg-green-600 hover:bg-green-700'
+          }`}
         >
-          Incluir questão na prova
+          {isIncluded ? 'Excluir questão da prova' : 'Incluir questão na prova'}
         </button>
       </div>
     </div>

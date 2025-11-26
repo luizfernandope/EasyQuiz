@@ -46,8 +46,6 @@ const menuItems = [
   });
 
   return (
-    // CORREÇÃO AQUI: h-[calc(100vh-5rem)] ajusta a altura para não estourar a tela
-    // sticky top-20 mantém a barra fixa enquanto rola o conteúdo
     <nav className="w-64 h-[calc(100vh-5rem)] bg-gray-800 text-white flex-shrink-0 p-4 flex flex-col sticky top-20">
       <h2 className="text-2xl font-semibold mb-6">Meu Painel</h2>
       
