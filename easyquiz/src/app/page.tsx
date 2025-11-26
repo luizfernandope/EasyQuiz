@@ -27,7 +27,7 @@ export default function HomePage() {
             Crie Provas em Minutos, não em Horas.
           </h1>
           <p className="text-lg md:text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
-            Bem-vindo ao EasyQuiz, a plataforma inteligente para professores e estudantes. 
+            Bem-vindo ao EasyQuiz, a plataforma inteligente para professores. 
             Crie, compartilhe e gere provas personalizadas com facilidade.
           </p>
           <div className="flex justify-center gap-4">

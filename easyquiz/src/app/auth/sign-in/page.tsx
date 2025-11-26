@@ -54,7 +54,7 @@ export default function SignInPage() {
             type="email"
             id="email"
             name="email"
-            placeholder="voce@email.com"
+            placeholder="Digite seu email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -70,7 +70,7 @@ export default function SignInPage() {
             type="password"
             id="password"
             name="password"
-            placeholder="Sua senha"
+            placeholder="Digite sua senha"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}

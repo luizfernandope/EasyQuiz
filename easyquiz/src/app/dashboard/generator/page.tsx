@@ -147,9 +147,9 @@ export default function TestGeneratorPage() {
 
     // SUA LOGO FINAL (as 3 já mescladas em uma única imagem)
     // Dados
-    const pdfDisciplina = filterDisciplina !== 'Todos' ? filterDisciplina : (disciplinaNome || 'Diversas');
-    const pdfProfessor = filterCriador !== 'Todos' ? filterCriador : (professor || 'Equipe Docente');
-    const pdfCurso = curso || 'Geral';
+    const pdfDisciplina = filterDisciplina !== 'Todos' ? filterDisciplina : (disciplinaNome || '');
+    const pdfProfessor = filterCriador !== 'Todos' ? filterCriador : (professor || '');
+    const pdfCurso = curso || '';
 
     // Preparar questões
     const questionStacks = selectedQuestions.map((q, index) => {
@@ -244,7 +244,7 @@ export default function TestGeneratorPage() {
         },
 
         {
-          text: tituloProva || 'Avaliação Acadêmica',
+          text: tituloProva || 'Avaliação',
           style: 'headerTitle',
           margin: [0, 0, 0, 10]
         },
@@ -255,13 +255,13 @@ export default function TestGeneratorPage() {
             widths: ['*', 'auto', 'auto'],
             body: [
               [
-                { text: 'Nome:', bold: true, border: [true, true, false, true] },
+                { text: 'Aluno:', bold: true, border: [true, true, false, true] },
                 { text: 'Matrícula:', bold: true, border: [false, true, false, true] },
                 { text: 'Data: ___/___/___', bold: true, border: [false, true, true, true] }
               ],
               [
-                { text: `Prof: ${pdfProfessor}`, bold: true, border: [true, true, false, true] },
-                { text: `Disc: ${pdfDisciplina}`, bold: true, border: [false, true, false, true] },
+                { text: `Professor: ${pdfProfessor}`, bold: true, border: [true, true, false, true] },
+                { text: `Disciplina: ${pdfDisciplina}`, bold: true, border: [false, true, false, true] },
                 { text: `Curso: ${pdfCurso}`, bold: true, border: [false, true, true, true] },
               ]
             ]

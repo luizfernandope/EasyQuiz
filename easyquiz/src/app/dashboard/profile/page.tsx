@@ -9,6 +9,7 @@ import { showSuccess, showError } from '@/services/alertService';
 export default function ProfilePage() {
   const router = useRouter();
   const [userId, setUserId] = useState<number | null>(null);
+  const [isProfessor, setIsProfessor] = useState(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,7 +25,6 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // 1. Carregar dados do usuário ao montar o componente
   useEffect(() => {
     const user = getLoggedUser();
     if (!user) {
@@ -32,6 +32,10 @@ export default function ProfilePage() {
       return;
     }
     setUserId(user.id);
+
+    if (user.tipo === 'PROFESSOR' || user.tipo === 'Professor') {
+      setIsProfessor(true);
+    }
 
     fetch(`${API_URL}/usuarios/${user.id}`)
       .then(async (res) => {
@@ -41,6 +45,10 @@ export default function ProfilePage() {
       .then((data) => {
         setName(data.nome);
         setEmail(data.email);
+        
+        if (data.tipo === 'PROFESSOR' || data.tipo === 'Professor') {
+            setIsProfessor(true);
+        }
       })
       .catch((err) => {
         console.error(err);
@@ -50,10 +58,13 @@ export default function ProfilePage() {
       .finally(() => setLoadingData(false));
   }, [router]);
 
-  // 2. Atualizar Informações Pessoais
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
+
+    // REMOVIDO: O bloco que impedia professores de salvar
+    // Como o input de nome está desabilitado, o estado 'name' manterá o valor original,
+    // garantindo que o nome não mude, mas o email sim.
 
     if (!name.trim() || !email.trim()) {
       showError('Nome e email são obrigatórios.');
@@ -87,7 +98,6 @@ export default function ProfilePage() {
     }
   };
 
-  // 3. Alterar Senha 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
@@ -147,9 +157,11 @@ export default function ProfilePage() {
     <div className="mx-auto px-4 max-w-3xl">
       <h1 className="text-3xl font-bold mb-8">Editar Perfil</h1>
 
-      {/* Formulário de Informações Pessoais */}
       <form onSubmit={handleProfileUpdate} className="bg-white p-8 shadow-md rounded-lg mb-8 border border-gray-200">
-        <h2 className="text-xl font-semibold pb-4 border-b mb-6 text-gray-800">Informações Pessoais</h2>
+        <div className="flex justify-between items-center pb-4 border-b mb-6">
+            <h2 className="text-xl font-semibold text-gray-800">Informações Pessoais</h2>
+            {/* REMOVIDO: Span de aviso "Edição restrita" */}
+        </div>
         
         <div className="space-y-4">
           <div>
@@ -161,7 +173,8 @@ export default function ProfilePage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                disabled={isProfessor} // MANTIDO: Bloqueia apenas o nome se for professor
+                className={`w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 ${isProfessor ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                 required
               />
             </div>
@@ -175,6 +188,7 @@ export default function ProfilePage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                // REMOVIDO: disabled={isProfessor} (Agora todos podem editar email)
                 className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 required
               />
@@ -182,21 +196,20 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* REINSERIDO: Botão agora visível para todos */}
         <div className="mt-6 text-right">
-          <button type="submit" disabled={savingProfile} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 ml-auto">
+        <button type="submit" disabled={savingProfile} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 ml-auto">
             {savingProfile && <Loader2 className="animate-spin" size={16} />}
             Salvar Informações
-          </button>
+        </button>
         </div>
       </form>
 
-      {/* Formulário de Alteração de Senha */}
+      {/* Formulário de Senha permanece igual */}
       <form onSubmit={handlePasswordChange} className="bg-white p-8 shadow-md rounded-lg border border-gray-200">
         <h2 className="text-xl font-semibold pb-4 border-b mb-6 text-gray-800">Alterar Senha</h2>
         
         <div className="space-y-4">
-          
-          {/* CAMPO SENHA ATUAL */}
           <div>
             <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">Senha Atual</label>
             <div className="relative">
@@ -215,7 +228,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* CAMPO NOVA SENHA */}
           <div>
             <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">Nova Senha</label>
             <div className="relative">
@@ -234,7 +246,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* CAMPO CONFIRMAR SENHA */}
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nova Senha</label>
             <div className="relative">

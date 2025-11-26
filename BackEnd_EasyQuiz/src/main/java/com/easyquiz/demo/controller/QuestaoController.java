@@ -29,7 +29,7 @@ public class QuestaoController {
     private final UsuarioRepository usuarioRepository;
 
     public QuestaoController(QuestaoRepository repository, QuestaoService questaoService,
-                             DisciplinaRepository disciplinaRepository, UsuarioRepository usuarioRepository) {
+            DisciplinaRepository disciplinaRepository, UsuarioRepository usuarioRepository) {
         this.repository = repository;
         this.questaoService = questaoService;
         this.disciplinaRepository = disciplinaRepository;
@@ -45,7 +45,7 @@ public class QuestaoController {
     public List<Questao> listar() {
         return repository.findAll();
     }
-    
+
     @GetMapping("/porCriador/{id}")
     public List<QuestaoDTO> listarPorCriador(@PathVariable Integer id) {
         return questaoService.listarPorCriador(id);
@@ -54,7 +54,8 @@ public class QuestaoController {
     @GetMapping("/{id}")
     public ResponseEntity<QuestaoDTO> obterPorId(@PathVariable Integer id) {
         QuestaoDTO dto = questaoService.buscarPorId(id);
-        if (dto != null) return ResponseEntity.ok(dto);
+        if (dto != null)
+            return ResponseEntity.ok(dto);
         return ResponseEntity.notFound().build();
     }
 
@@ -65,29 +66,43 @@ public class QuestaoController {
                 return ResponseEntity.badRequest().body("O enunciado da questão é obrigatório.");
             }
 
+            if (dto.getCriadorId() == null) {
+                return ResponseEntity.badRequest().body("ID do criador é obrigatório.");
+            }
+
+            // Normaliza o enunciado
+            String enunciado = dto.getEnunciado().trim();
+            boolean jaExiste = repository.existsByDescricaoAndTipoAndDisciplinaIdAndCriadoPorId(
+                    enunciado,
+                    dto.getTipo(),
+                    dto.getDisciplinaId(),
+                    dto.getCriadorId());
+
+            if (jaExiste) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body("Você já cadastrou uma questão idêntica (mesmo enunciado, tipo e disciplina).");
+            }
+
             Questao questao = new Questao();
-            String enunciado = dto.getEnunciado();
             questao.setTitulo(enunciado.length() > 50 ? enunciado.substring(0, 50) : enunciado);
             questao.setDescricao(enunciado);
-            
+
             questao.setDificuldade(dto.getDificuldade());
             questao.setTipo(dto.getTipo());
             questao.setDataCriacao(LocalDateTime.now());
             questao.setDataUltimaModificacao(LocalDateTime.now());
 
+            // Configuração da Disciplina
             if (dto.getDisciplinaId() != null) {
                 disciplinaRepository.findById(dto.getDisciplinaId()).ifPresent(questao::setDisciplina);
             }
 
-            if (dto.getCriadorId() != null) {
-                Optional<Usuario> user = usuarioRepository.findById(dto.getCriadorId());
-                if (user.isPresent()) {
-                    questao.setCriadoPor(user.get());
-                } else {
-                    return ResponseEntity.badRequest().body("Criador não encontrado.");
-                }
+            // Configuração do Criador
+            Optional<Usuario> user = usuarioRepository.findById(dto.getCriadorId());
+            if (user.isPresent()) {
+                questao.setCriadoPor(user.get());
             } else {
-                return ResponseEntity.badRequest().body("ID do criador é obrigatório.");
+                return ResponseEntity.badRequest().body("Criador não encontrado.");
             }
 
             Questao salva = repository.save(questao);
@@ -95,19 +110,21 @@ public class QuestaoController {
             if (dto.getOpcoes() != null && !dto.getOpcoes().isEmpty()) {
                 List<OpcaoResposta> novasOpcoes = new ArrayList<>();
                 for (var optDto : dto.getOpcoes()) {
-                    if (optDto == null) continue;
+                    if (optDto == null)
+                        continue;
                     OpcaoResposta op = new OpcaoResposta();
-                    op.setTextoResposta(optDto.getTexto() != null ? optDto.getTexto() : ""); 
+                    op.setTextoResposta(optDto.getTexto() != null ? optDto.getTexto() : "");
                     op.setCorreta(optDto.isCorreta());
                     op.setQuestao(salva);
                     novasOpcoes.add(op);
                 }
 
-                if (salva.getOpcoes() == null) salva.setOpcoes(new ArrayList<>());
+                if (salva.getOpcoes() == null)
+                    salva.setOpcoes(new ArrayList<>());
                 salva.getOpcoes().clear();
                 salva.getOpcoes().addAll(novasOpcoes);
 
-                repository.save(salva); 
+                repository.save(salva);
             }
 
             return ResponseEntity.status(HttpStatus.CREATED).body(salva);
@@ -133,7 +150,7 @@ public class QuestaoController {
                 questao.setTitulo(enunciado.length() > 50 ? enunciado.substring(0, 50) : enunciado);
                 questao.setDescricao(enunciado);
             }
-            
+
             questao.setDificuldade(dto.getDificuldade());
             questao.setTipo(dto.getTipo());
             questao.setDataUltimaModificacao(LocalDateTime.now());
@@ -146,7 +163,7 @@ public class QuestaoController {
                 List<OpcaoResposta> novasOpcoes = new ArrayList<>();
                 for (var optDto : dto.getOpcoes()) {
                     OpcaoResposta op = new OpcaoResposta();
-                    op.setTextoResposta(optDto.getTexto() != null ? optDto.getTexto() : ""); 
+                    op.setTextoResposta(optDto.getTexto() != null ? optDto.getTexto() : "");
                     op.setCorreta(optDto.isCorreta());
                     op.setQuestao(questao);
                     novasOpcoes.add(op);
@@ -155,9 +172,9 @@ public class QuestaoController {
                 if (questao.getOpcoes() == null) {
                     questao.setOpcoes(new ArrayList<>());
                 }
-                
-                questao.getOpcoes().clear(); 
-                questao.getOpcoes().addAll(novasOpcoes); 
+
+                questao.getOpcoes().clear();
+                questao.getOpcoes().addAll(novasOpcoes);
             }
 
             Questao salva = repository.save(questao);
@@ -182,12 +199,12 @@ public class QuestaoController {
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Long>> getEstatisticas() {
         Map<String, Long> stats = new HashMap<>();
-        
+
         stats.put("total", repository.count());
         stats.put("multipla", repository.countByTipo("Multipla Escolha"));
         stats.put("vf", repository.countByTipo("Verdadeiro/Falso"));
         stats.put("dissertativa", repository.countByTipo("Dissertativa"));
-        
+
         return ResponseEntity.ok(stats);
     }
 
@@ -195,12 +212,12 @@ public class QuestaoController {
     @GetMapping("/stats/personal/{id}")
     public ResponseEntity<Map<String, Long>> getEstatisticasPorCriador(@PathVariable Integer id) {
         Map<String, Long> stats = new HashMap<>();
-        
+
         stats.put("total", repository.countByCriadoPorId(id));
         stats.put("multipla", repository.countByCriadoPorIdAndTipo(id, "Multipla Escolha"));
         stats.put("vf", repository.countByCriadoPorIdAndTipo(id, "Verdadeiro/Falso"));
         stats.put("dissertativa", repository.countByCriadoPorIdAndTipo(id, "Dissertativa"));
-        
+
         return ResponseEntity.ok(stats);
     }
 }

@@ -12,4 +12,11 @@ public interface QuestaoRepository extends JpaRepository<Questao, Integer> {
     
     long countByCriadoPorId(Integer criadoPorId);
     long countByCriadoPorIdAndTipo(Integer criadoPorId, String tipo);
+
+    boolean existsByDescricaoAndTipoAndDisciplinaIdAndCriadoPorId(
+        String descricao, 
+        String tipo, 
+        Integer disciplinaId, 
+        Integer criadoPorId
+    );
 }
