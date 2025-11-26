@@ -3,17 +3,16 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_URL } from '@/services/api';
+import { showError, showSuccess } from '@/services/alertService';
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter(); 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -27,14 +26,15 @@ export default function SignInPage() {
         const user = await response.json();
         localStorage.setItem('easyquiz_user', JSON.stringify(user));
         
+        await showSuccess('Login realizado com sucesso!');
         window.location.href = '/'; 
         
       } else {
-        setError('Email ou senha inválidos.');
+        showError('Email ou senha inválidos.');
       }
     } catch (err) {
       console.error(err);
-      setError('Erro ao conectar com o servidor.');
+      showError('Erro ao conectar com o servidor.');
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,6 @@ export default function SignInPage() {
       <h1 className="text-3xl font-bold text-center mb-6">Login</h1>
       
       <form onSubmit={handleSubmit} className="bg-white p-8 shadow-lg rounded-lg space-y-4">
-        {error && <div className="p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
         
         <div className="mb-4">
           <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">

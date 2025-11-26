@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { User, Mail, Shield } from 'lucide-react';
 import { API_URL, getLoggedUser } from '@/services/api';
 import { useRouter, useParams } from 'next/navigation';
+import { showSuccess, showError } from '@/services/alertService';
 
 type Disciplina = {
   id: number;
@@ -47,13 +48,13 @@ export default function EditUserPage() {
         }
       } catch (err) {
         console.error(err);
-        alert("Erro ao carregar dados.");
+        showError("Erro ao carregar dados do usuário.");
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [userIdToEdit]);
+}, [userIdToEdit]);
 
   const handleDisciplinaToggle = (id: number) => {
     setSelectedDisciplinas(prev => 
@@ -61,7 +62,7 @@ export default function EditUserPage() {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     const admin = getLoggedUser();
@@ -81,17 +82,17 @@ export default function EditUserPage() {
         });
 
         if (res.ok) {
-            alert("Usuário atualizado com sucesso!");
+            await showSuccess("Usuário atualizado com sucesso!");
             router.push('/dashboard/users');
         } else {
-            alert("Erro ao atualizar.");
+            showError("Erro ao atualizar o usuário.");
         }
     } catch (error) {
-        alert("Erro de conexão.");
+        showError("Erro de conexão.");
     } finally {
         setSaving(false);
     }
-  };
+};
 
   if (loading) return <div className="p-8">Carregando...</div>;
 

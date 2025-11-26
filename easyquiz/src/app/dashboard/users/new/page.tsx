@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Shield, BookOpen } from 'lucide-react';
+import { User, Mail, Shield } from 'lucide-react';
 import { API_URL, getLoggedUser } from '@/services/api';
+import { showSuccess, showError } from '@/services/alertService';
 
 type UserType = 'Professor' | 'Admin';
 
@@ -20,7 +21,6 @@ export default function NewUserPage() {
   const [availableDisciplinas, setAvailableDisciplinas] = useState<Disciplina[]>([]);
   const [selectedDisciplinas, setSelectedDisciplinas] = useState<number[]>([]);
 
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Carregar disciplinas ao iniciar
@@ -46,12 +46,11 @@ export default function NewUserPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
     setLoading(true);
 
     const currentUser = getLoggedUser();
     if (!currentUser) {
-        setMessage({ text: 'Você precisa estar logado como Admin.', type: 'error' });
+        showError('Você precisa estar logado como Admin.');
         setLoading(false);
         return;
     }
@@ -75,20 +74,17 @@ export default function NewUserPage() {
         });
 
         if (res.ok) {
-            setMessage({ 
-                text: `Usuário cadastrado com sucesso! A senha foi enviada para o email.`, 
-                type: 'success' 
-            });
+            showSuccess(`Usuário cadastrado com sucesso! A senha foi enviada para o email.`);
             setName('');
             setEmail('');
             setSelectedDisciplinas([]);
         } else {
             const errorText = await res.text();
-            setMessage({ text: `Erro: ${errorText || 'Falha ao cadastrar.'}`, type: 'error' });
+            showError(`Erro: ${errorText || 'Falha ao cadastrar.'}`);
         }
     } catch (error) {
         console.error(error);
-        setMessage({ text: 'Falha na conexão com o servidor.', type: 'error' });
+        showError('Falha na conexão com o servidor.');
     } finally {
         setLoading(false);
     }
@@ -188,17 +184,8 @@ export default function NewUserPage() {
           </div>
         )}
 
-        {/* Feedback e Botão de Salvar */}
+        {/* Botão de Salvar */}
         <div className="text-right pt-4">
-          {message && (
-            <div
-              className={`text-sm mb-4 text-left p-3 rounded-md ${
-                message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}
-            >
-              {message.text}
-            </div>
-          )}
           <button
             type="submit"
             disabled={loading}

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Book, Plus, Edit, Trash2, Save, X, Loader2 } from 'lucide-react';
-import { API_URL } from '@/services/api'; // Certifique-se de que este arquivo existe e exporta a URL base
+import { API_URL } from '@/services/api';
+import { showSuccess, showError, showConfirm } from '@/services/alertService';
 
 type Disciplina = {
   id: number;
@@ -18,8 +19,6 @@ export default function DisciplinasPage() {
   // Estados para controlar a edição inline
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
-
-  const [error, setError] = useState<string | null>(null);
 
   // 1. Carregar disciplinas do Backend ao abrir a página
   useEffect(() => {
@@ -44,21 +43,20 @@ export default function DisciplinasPage() {
   };
 
   // 2. Cadastrar Nova Disciplina
-  const handleAddDisciplina = async (e: React.FormEvent) => {
+const handleAddDisciplina = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDisciplinaName.trim()) {
-      setError('O nome da disciplina não pode ser vazio.');
+      showError('O nome da disciplina não pode ser vazio.');
       return;
     }
     
-    // Verifica duplicidade localmente (opcional, o backend pode validar também)
     if (disciplinas.some(d => d.nome.toLowerCase() === newDisciplinaName.trim().toLowerCase())) {
-      setError('Esta disciplina já existe na lista.');
+      showError('Esta disciplina já existe na lista.');
       return;
     }
 
     setSaving(true);
-    setError(null);
+    // setError(null); // REMOVER
 
     try {
       const response = await fetch(`${API_URL}/disciplina/cadastrar`, {
@@ -71,19 +69,21 @@ export default function DisciplinasPage() {
         const novaDisciplina = await response.json();
         setDisciplinas([...disciplinas, novaDisciplina]);
         setNewDisciplinaName('');
+        showSuccess('Disciplina cadastrada!');
       } else {
-        setError('Erro ao salvar disciplina no servidor.');
+        showError('Erro ao salvar disciplina no servidor.');
       }
     } catch (err) {
-      setError('Erro de conexão ao salvar.');
+      showError('Erro de conexão ao salvar.');
     } finally {
       setSaving(false);
     }
-  };
+};
 
   // 3. Excluir Disciplina
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta disciplina?')) return;
+const handleDelete = async (id: number) => {
+    const result = await showConfirm('Tem certeza que deseja excluir esta disciplina?');
+    if (!result.isConfirmed) return;
 
     try {
       const response = await fetch(`${API_URL}/disciplina/delete/${id}`, {
@@ -92,13 +92,14 @@ export default function DisciplinasPage() {
 
       if (response.ok) {
         setDisciplinas(disciplinas.filter(d => d.id !== id));
+        showSuccess('Disciplina excluída.');
       } else {
-        alert('Erro ao excluir. Verifique se não há questões vinculadas a esta disciplina.');
+        showError('Erro ao excluir. Verifique se não há questões vinculadas.');
       }
     } catch (err) {
-      alert('Erro de conexão ao excluir.');
+      showError('Erro de conexão ao excluir.');
     }
-  };
+};
 
   // 4. Edição (Funções Auxiliares)
   const handleStartEditing = (disciplina: Disciplina) => {
@@ -112,9 +113,9 @@ export default function DisciplinasPage() {
   };
 
   // 5. Salvar Edição (PUT)
-  const handleSaveEditing = async () => {
+const handleSaveEditing = async () => {
     if (!editingName.trim()) {
-      alert('O nome não pode ser vazio.');
+      showError('O nome não pode ser vazio.');
       return;
     }
     if (editingId === null) return;
@@ -132,13 +133,14 @@ export default function DisciplinasPage() {
           disciplinas.map(d => (d.id === editingId ? atualizada : d))
         );
         handleCancelEditing();
+        showSuccess('Atualizado com sucesso!');
       } else {
-        alert('Erro ao atualizar disciplina.');
+        showError('Erro ao atualizar disciplina.');
       }
     } catch (err) {
-      alert('Erro de conexão ao atualizar.');
+      showError('Erro de conexão ao atualizar.');
     }
-  };
+};
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-4">
@@ -158,13 +160,11 @@ export default function DisciplinasPage() {
               value={newDisciplinaName}
               onChange={(e) => {
                 setNewDisciplinaName(e.target.value);
-                setError(null);
               }}
               className="w-full p-2 border rounded-md"
               placeholder="Ex: Programação Orientada a Objetos"
               disabled={saving}
             />
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
           </div>
           <button
             type="submit"

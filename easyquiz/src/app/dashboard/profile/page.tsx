@@ -4,31 +4,25 @@ import { useState, useEffect } from 'react';
 import { User, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { API_URL, getLoggedUser } from '@/services/api';
 import { useRouter } from 'next/navigation';
+import { showSuccess, showError } from '@/services/alertService';
 
 export default function ProfilePage() {
   const router = useRouter();
   const [userId, setUserId] = useState<number | null>(null);
 
-  // Dados do formulário de perfil
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [loadingData, setLoadingData] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Dados do formulário de senha
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
-  // Controle de visibilidade
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // Mensagens de feedback
-  const [profileMessage, setProfileMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [passwordMessage, setPasswordMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // 1. Carregar dados do usuário ao montar o componente
   useEffect(() => {
@@ -59,11 +53,10 @@ export default function ProfilePage() {
   // 2. Atualizar Informações Pessoais
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileMessage(null);
     if (!userId) return;
 
     if (!name.trim() || !email.trim()) {
-      setProfileMessage({ text: 'Nome e email são obrigatórios.', type: 'error' });
+      showError('Nome e email são obrigatórios.');
       return;
     }
 
@@ -78,17 +71,17 @@ export default function ProfilePage() {
 
       if (response.ok) {
         const updatedUser = await response.json();
-        setProfileMessage({ text: 'Informações atualizadas com sucesso!', type: 'success' });
+        showSuccess('Informações atualizadas com sucesso!');
         
         const oldLocal = getLoggedUser();
         if (oldLocal) {
             localStorage.setItem('easyquiz_user', JSON.stringify({ ...oldLocal, nome: updatedUser.nome, email: updatedUser.email }));
         }
       } else {
-        setProfileMessage({ text: 'Erro ao atualizar perfil.', type: 'error' });
+        showError('Erro ao atualizar perfil.');
       }
     } catch (error) {
-      setProfileMessage({ text: 'Erro de conexão.', type: 'error' });
+      showError('Erro de conexão.');
     } finally {
       setSavingProfile(false);
     }
@@ -97,19 +90,18 @@ export default function ProfilePage() {
   // 3. Alterar Senha 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPasswordMessage(null);
     if (!userId) return;
 
     if (!currentPassword) {
-      setPasswordMessage({ text: 'Por favor, digite sua senha atual.', type: 'error' });
+      showError('Por favor, digite sua senha atual.');
       return;
     }
     if (!newPassword || !confirmPassword) {
-      setPasswordMessage({ text: 'Preencha a nova senha.', type: 'error' });
+      showError('Preencha a nova senha.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMessage({ text: 'A nova senha e a confirmação não coincidem.', type: 'error' });
+      showError('A nova senha e a confirmação não coincidem.');
       return;
     }
     
@@ -128,16 +120,16 @@ export default function ProfilePage() {
       });
 
       if (response.ok) {
-        setPasswordMessage({ text: 'Senha alterada com sucesso!', type: 'success' });
+        showSuccess('Senha alterada com sucesso!');
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
         const errorText = await response.text();
-        setPasswordMessage({ text: errorText || 'Erro ao alterar senha.', type: 'error' });
+        showError(errorText || 'Erro ao alterar senha.');
       }
     } catch (error) {
-      setPasswordMessage({ text: 'Erro de conexão.', type: 'error' });
+      showError('Erro de conexão.');
     } finally {
       setSavingPassword(false);
     }
@@ -191,11 +183,6 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-6 text-right">
-           {profileMessage && (
-            <div className={`text-sm mb-4 text-left p-3 rounded-md ${ profileMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {profileMessage.text}
-            </div>
-          )}
           <button type="submit" disabled={savingProfile} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 ml-auto">
             {savingProfile && <Loader2 className="animate-spin" size={16} />}
             Salvar Informações
@@ -268,11 +255,6 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-6 text-right">
-          {passwordMessage && (
-            <div className={`text-sm mb-4 text-left p-3 rounded-md ${ passwordMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {passwordMessage.text}
-            </div>
-          )}
           <button type="submit" disabled={savingPassword} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 ml-auto">
             {savingPassword && <Loader2 className="animate-spin" size={16} />}
             Alterar Senha

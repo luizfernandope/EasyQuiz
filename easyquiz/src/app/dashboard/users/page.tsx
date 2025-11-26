@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Edit, Trash2, Shield, User } from 'lucide-react';
 import Link from 'next/link';
 import { API_URL, getLoggedUser } from '@/services/api';
+import { showSuccess, showError, showConfirm } from '@/services/alertService';
 
 type Usuario = {
   id: number;
@@ -34,8 +35,10 @@ export default function UsersListPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
+const handleDelete = async (id: number) => {
+    const result = await showConfirm("Tem a certeza que deseja excluir este utilizador?");
+    if (!result.isConfirmed) return;
+
     const logged = getLoggedUser();
     if (!logged) return;
 
@@ -45,14 +48,14 @@ export default function UsersListPage() {
       });
       if (res.ok) {
         setUsers(users.filter(u => u.id !== id));
-        alert("Usuário excluído.");
+        showSuccess("Usuário excluído com sucesso.");
       } else {
-        alert("Erro ao excluir.");
+        showError("Erro ao excluir usuário.");
       }
     } catch (error) {
-      alert("Erro de conexão.");
+      showError("Erro de conexão ao tentar excluir.");
     }
-  };
+};
 
   return (
     <div>
