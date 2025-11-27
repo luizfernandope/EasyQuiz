@@ -16,8 +16,11 @@ export default function Sidebar() {
     setUser(logged);
   }, []);
 
-  const handleLogout = () => {
+const handleLogout = () => {
     localStorage.removeItem('easyquiz_user');
+
+    document.cookie = 'auth_token=; path=/; max-age=0;';
+
     window.location.href = '/auth/sign-in';
   };
 

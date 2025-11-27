@@ -19,5 +19,5 @@ export function middleware(request: NextRequest) {
 
 // Configuração para dizer ao Next.js em quais rotas rodar este middleware
 export const config = {
-  matcher: '/dashboard/:path*',
+  matcher: ['/dashboard', '/dashboard/:path*'],
 }
