@@ -14,9 +14,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.ForeignKey;
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,14 +25,13 @@ public class LogCadastro {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "admin_id", referencedColumnName = "id",
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "admin_id", referencedColumnName = "id", nullable = true,
             foreignKey = @ForeignKey(name = "fk_logcadastro_admin"))
-    @OnDelete(action = OnDeleteAction.CASCADE)
     private Usuario admin;
 
-    @ManyToOne(optional = true) 
-    @JoinColumn(name = "professor_id", referencedColumnName = "id",
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "professor_id", referencedColumnName = "id", nullable = true,
             foreignKey = @ForeignKey(name = "fk_logcadastro_professor"))
     private Usuario professor;
 
