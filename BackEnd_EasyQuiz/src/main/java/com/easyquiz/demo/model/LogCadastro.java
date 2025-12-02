@@ -28,25 +28,23 @@ public class LogCadastro {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    // Admin (foreign key -> usuario.id) with cascade on delete
     @ManyToOne(optional = false)
     @JoinColumn(name = "admin_id", referencedColumnName = "id",
             foreignKey = @ForeignKey(name = "fk_logcadastro_admin"))
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Usuario admin;
 
-    // Professor (foreign key -> usuario.id) with cascade on delete
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = true) 
     @JoinColumn(name = "professor_id", referencedColumnName = "id",
             foreignKey = @ForeignKey(name = "fk_logcadastro_professor"))
-    @OnDelete(action = OnDeleteAction.CASCADE)
     private Usuario professor;
 
-    // Use columnDefinition to match DEFAULT CURRENT_TIMESTAMP in DB
+    @Column(name = "nome_usuario", length = 100)
+    private String nomeUsuario;
+
     @Column(name = "data_hora", columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime dataHora;
 
-    // NEW FIELD: To record the action (REGISTRATION, MODIFICATION, DELETION)
     @Column(name = "acao", nullable = false, length = 15)
     private String acao;
 }

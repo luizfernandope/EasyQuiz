@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController()
 @RequestMapping("/usuarios")
@@ -25,7 +26,6 @@ public class UsuarioController {
     private final DisciplinaRepository disciplinaRepository;
     private final QuestaoRepository questaoRepository; 
 
-    // Injeção de dependência atualizada
     public UsuarioController(UsuarioRepository usuarioRepository, 
                              EmailService emailService, 
                              LogCadastroRepository logCadastroRepository,
@@ -95,9 +95,11 @@ public class UsuarioController {
             emailService.enviarEmailSimples(usuario.getEmail(), "Bem-vindo ao EasyQuiz", textoEmail);
         } catch (Exception e) { System.err.println("Erro email: " + e.getMessage()); }
 
+        // --- REGISTRO DE LOG (CRIAÇÃO) ---
         LogCadastro log = new LogCadastro();
         log.setAdmin(admin);
         log.setProfessor(novoUsuario);
+        log.setNomeUsuario(novoUsuario.getNome()); // Garante o nome no histórico
         log.setDataHora(LocalDateTime.now());
         log.setAcao("CADASTRO"); 
         logCadastroRepository.save(log);
@@ -160,9 +162,11 @@ public class UsuarioController {
             }
         }
 
+        // --- REGISTRO DE LOG (ALTERAÇÃO) ---
         LogCadastro log = new LogCadastro();
         log.setAdmin(admin);
         log.setProfessor(usuarioSalvo);
+        log.setNomeUsuario(usuarioSalvo.getNome()); 
         log.setDataHora(LocalDateTime.now());
         log.setAcao("ALTERACAO");
         logCadastroRepository.save(log);
@@ -170,13 +174,15 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioSalvo);
     }
 
-// --- EXCLUSÃO DE USUÁRIO (CORRIGIDO) ---
+    // --- EXCLUSÃO DE USUÁRIO (COM LOG) ---
     @DeleteMapping("/delete/{userId}/{adminId}")
+    @Transactional 
     public ResponseEntity<Void> deletarUsuario_Admin(@PathVariable Integer userId, @PathVariable Integer adminId) {
         Optional<Usuario> adminOpt = usuarioRepository.findById(adminId);
         if (adminOpt.isEmpty() || !adminOpt.get().getTipo().equals("ADMIN")) {
              return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+        Usuario admin = adminOpt.get();
 
         return usuarioRepository.findById(userId).map(usuario -> {
             try {
@@ -190,26 +196,45 @@ public class UsuarioController {
                 List<Questao> questoes = questaoRepository.findByCriadoPorId(userId);
                 questaoRepository.deleteAll(questoes);
 
-                // 3. Apagar Logs onde este usuário é o ALVO
+                // 3. Atualizar logs onde este usuário é o ALVO (Professor)
                 List<LogCadastro> logsAlvo = logCadastroRepository.findAll().stream()
                     .filter(l -> l.getProfessor() != null && l.getProfessor().getId().equals(userId))
                     .collect(Collectors.toList());
-                logCadastroRepository.deleteAll(logsAlvo);
+                
+                for (LogCadastro l : logsAlvo) {
+                    l.setProfessor(null); 
+                    if (l.getNomeUsuario() == null) {
+                        l.setNomeUsuario(usuario.getNome());
+                    }
+                    logCadastroRepository.save(l);
+                }
 
-                // 4. Apagar Logs onde este usuário foi o ADMIN
+                // 4. Se o usuário a ser deletado criou logs como ADMIN (ex: um admin deletando outro)
                 List<LogCadastro> logsAdmin = logCadastroRepository.findAll().stream()
                     .filter(l -> l.getAdmin() != null && l.getAdmin().getId().equals(userId))
                     .collect(Collectors.toList());
-                logCadastroRepository.deleteAll(logsAdmin);
                 
-                // 5. Finalmente, apaga o usuário
+                for (LogCadastro l : logsAdmin) {
+                    l.setAdmin(null); 
+                    logCadastroRepository.save(l);
+                }
+                
+                // 5. REGISTRAR O LOG DE EXCLUSÃO
+                LogCadastro logExclusao = new LogCadastro();
+                logExclusao.setAdmin(admin);
+                logExclusao.setProfessor(null); 
+                logExclusao.setNomeUsuario(usuario.getNome()); 
+                logExclusao.setDataHora(LocalDateTime.now());
+                logExclusao.setAcao("EXCLUSAO");
+                logCadastroRepository.save(logExclusao);
+
                 usuarioRepository.deleteById(userId);
                 
-                System.out.println("Usuário " + userId + " excluído com todas as dependências.");
+                System.out.println("Usuário " + userId + " excluído e log de exclusão gerado.");
                 return ResponseEntity.noContent().<Void>build();
                 
             } catch (Exception e) {
-                e.printStackTrace(); // Mostra o erro real no terminal
+                e.printStackTrace(); 
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<Void>build();
             }
         }).orElseGet(() -> ResponseEntity.notFound().build());
